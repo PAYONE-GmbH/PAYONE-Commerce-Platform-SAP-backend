@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<widget xmlns="http://www.zkoss.org/2005/zul"
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xsi:schemaLocation="http://www.zkoss.org/2005/zul http://www.hybris.com/schema/cockpitng/zul/zul.xsd"
+		height="100%">
+
+	<style src="${wr}/payonepcpbackofficewidget.css"/>
+
+	<div sclass="payone-operations-widget">
+		<div sclass="payone-operations-header">
+			<div>
+				<label value="${labels.payone.operations.title}" sclass="payone-operations-title"/>
+				<label value="${labels.payone.operations.subtitle}" sclass="payone-operations-subtitle"/>
+			</div>
+			<button id="refreshButton" label="${labels.payone.operations.refresh}" sclass="payone-operations-refresh"/>
+		</div>
+
+		<label id="errorLabel" value="${labels.payone.operations.error}" visible="false"
+				sclass="payone-operations-error"/>
+
+		<div sclass="payone-operations-metrics">
+			<div sclass="payone-operations-metric">
+				<label id="configurationsValue" value="&#x2014;" sclass="payone-operations-value"/>
+				<label value="${labels.payone.operations.configurations}" sclass="payone-operations-label"/>
+			</div>
+			<div sclass="payone-operations-metric">
+				<label id="commerceCasesValue" value="&#x2014;" sclass="payone-operations-value"/>
+				<label value="${labels.payone.operations.commerceCases}" sclass="payone-operations-label"/>
+			</div>
+			<div sclass="payone-operations-metric">
+				<label id="recentCheckoutsValue" value="&#x2014;" sclass="payone-operations-value"/>
+				<label value="${labels.payone.operations.recentCheckouts}" sclass="payone-operations-label"/>
+			</div>
+			<div sclass="payone-operations-metric">
+				<label id="webhookBacklogValue" value="&#x2014;" sclass="payone-operations-value"/>
+				<label value="${labels.payone.operations.webhookBacklog}" sclass="payone-operations-label"/>
+			</div>
+			<div sclass="payone-operations-metric">
+				<label id="retryingWebhooksValue" value="&#x2014;" sclass="payone-operations-value"/>
+				<label value="${labels.payone.operations.retryingWebhooks}" sclass="payone-operations-label"/>
+			</div>
+			<div sclass="payone-operations-metric">
+				<label id="latestWebhookValue" value="&#x2014;" sclass="payone-operations-value payone-operations-date"/>
+				<label value="${labels.payone.operations.latestWebhook}" sclass="payone-operations-label"/>
+			</div>
+		</div>
+
+		<div sclass="payone-operations-actions">
+			<button id="configurationsButton" label="${labels.payone.operations.openConfigurations}"/>
+			<button id="commerceCasesButton" label="${labels.payone.operations.openCommerceCases}"/>
+			<button id="checkoutsButton" label="${labels.payone.operations.openCheckouts}"/>
+			<button id="webhooksButton" label="${labels.payone.operations.openWebhooks}"/>
+		</div>
+
+		<div sclass="payone-operations-updated">
+			<label value="${labels.payone.operations.lastUpdated}"/>
+			<label id="lastUpdatedValue" value="&#x2014;"/>
+		</div>
+	</div>
+</widget>

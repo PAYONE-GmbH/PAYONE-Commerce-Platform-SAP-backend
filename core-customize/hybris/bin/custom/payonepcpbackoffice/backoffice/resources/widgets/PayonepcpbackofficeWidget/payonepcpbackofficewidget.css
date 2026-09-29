@@ -1,0 +1,98 @@
+.payone-operations-widget {
+	box-sizing: border-box;
+	height: 100%;
+	min-width: 32rem;
+	padding: 1rem;
+	background: var(--bo-container-background, var(--bo-base-background));
+	color: var(--bo-text-color);
+	font-family: var(--bo-font-family);
+}
+
+.payone-operations-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 1rem;
+	margin-bottom: 1rem;
+}
+
+.payone-operations-title,
+.payone-operations-subtitle,
+.payone-operations-value,
+.payone-operations-label {
+	display: block;
+}
+
+.payone-operations-title {
+	font-size: 1.25rem;
+	font-weight: 700;
+}
+
+.payone-operations-subtitle,
+.payone-operations-label,
+.payone-operations-updated {
+	color: var(--bo-content-label-color, var(--bo-text-color));
+}
+
+.payone-operations-subtitle {
+	margin-top: 0.25rem;
+}
+
+.payone-operations-metrics {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(9rem, 1fr));
+	gap: 0.75rem;
+}
+
+.payone-operations-metric {
+	box-sizing: border-box;
+	min-height: 5.5rem;
+	padding: 0.875rem;
+	border: 1px solid var(--bo-container-border-color, #d9d9d9);
+	border-radius: 0.25rem;
+	background: var(--bo-base-background);
+}
+
+.payone-operations-value {
+	margin-bottom: 0.35rem;
+	font-size: 1.5rem;
+	font-weight: 700;
+	line-height: 1.2;
+}
+
+.payone-operations-date {
+	font-size: 1rem;
+}
+
+.payone-operations-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin-top: 1rem;
+}
+
+.payone-operations-error {
+	display: block;
+	margin-bottom: 0.75rem;
+	padding: 0.5rem 0.75rem;
+	border-radius: 0.25rem;
+	background: var(--bo-negative-background, #ffebeb);
+	color: var(--bo-negative-color, #aa0808);
+}
+
+.payone-operations-updated {
+	display: flex;
+	gap: 0.25rem;
+	margin-top: 0.75rem;
+	font-size: 0.75rem;
+}
+
+@media (max-width: 50rem) {
+	.payone-operations-widget {
+		min-width: 20rem;
+	}
+
+	.payone-operations-metrics {
+		grid-template-columns: repeat(2, minmax(8rem, 1fr));
+	}
+}

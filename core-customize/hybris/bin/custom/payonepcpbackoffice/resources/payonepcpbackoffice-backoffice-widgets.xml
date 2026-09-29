@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+ Copyright (c) 2020 SAP SE or an SAP affiliate company. All rights reserved
+-->
+<widgets xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="http://www.hybris.com/schema/cockpitng/widgets.xsd">
+
+	<widget-extension widgetId="backoffice_dashboard">
+		<widget id="payoneOperationsOverview"
+				widgetDefinitionId="com.payone.pcp.backoffice.widgets.payonepcpbackofficewidget"
+				template="false" slotId="dashboardWidgets" title="PAYONE Operations">
+			<virtual-sockets/>
+		</widget>
+	</widget-extension>
+
+	<widget-connection sourceWidgetId="payoneOperationsOverview" outputId="navigateToNode"
+			targetWidgetId="explorerTree" inputId="nodeIdSelected"/>
+	<widget-connection sourceWidgetId="payoneOperationsOverview" outputId="navigateToNode"
+			targetWidgetId="sideNavigation" inputId="nodeIdSelected"/>
+
+</widgets>

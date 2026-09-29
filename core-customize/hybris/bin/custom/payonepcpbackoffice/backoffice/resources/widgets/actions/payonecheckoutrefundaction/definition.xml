@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Refund of the captured, not yet refunded amount from the PayoneCheckout editor. -->
+<action-definition id="com.payone.pcp.backoffice.actions.payonecheckoutrefundaction"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="http://www.hybris.com/schema/cockpitng/action-definition.xsd">
+
+	<name>PAYONE Refund</name>
+	<description>Triggers a full-amount PCP Refund for the order linked to the selected checkout</description>
+	<author>PAYONE</author>
+	<version>1.0</version>
+
+	<actionClassName>com.payone.pcp.backoffice.actions.PayoneCheckoutRefundAction</actionClassName>
+
+	<inputType>com.payone.pcp.core.model.PayoneCheckoutModel</inputType>
+	<outputType>java.lang.Object</outputType>
+
+	<iconUri>icons/icon_action_refund.svg</iconUri>
+
+</action-definition>

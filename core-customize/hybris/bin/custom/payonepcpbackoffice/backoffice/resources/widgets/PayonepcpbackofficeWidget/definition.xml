@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+ Copyright (c) 2020 SAP SE or an SAP affiliate company. All rights reserved
+-->
+<widget-definition xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="http://www.hybris.com/schema/cockpitng/widget-definition.xsd"
+	id="com.payone.pcp.backoffice.widgets.payonepcpbackofficewidget">
+	<name>Payone Commerce Platform</name>
+	<description>Operational overview and navigation for PAYONE Commerce Platform.</description>
+	<defaultTitle>Payone Commerce Platform</defaultTitle>
+	<author>PAYONE</author>
+	<version>2.0</version>
+	<view src="payonepcpbackofficewidget.zul" />
+	<sockets>
+		<output id="navigateToNode" type="com.hybris.backoffice.navigation.TreeNodeSelector"/>
+	</sockets>
+	<keywords>
+		<keyword>payonepcpbackoffice</keyword>
+	</keywords>
+	<controller class="com.payone.pcp.backoffice.widgets.PayonepcpbackofficeController" />
+</widget-definition>

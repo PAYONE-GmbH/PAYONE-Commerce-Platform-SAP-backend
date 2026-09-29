@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    payonepcpocc extension metadata.
+    OCC (Omni Commerce Connect) REST surface consumed by the Spartacus feature
+    library: tokenization-session, checkout and status endpoints, plus their
+    WsDTOs and field mappers. Declares no web module of
+    its own - it contributes controllers and Spring config to the
+    commercewebservices webapp via resources/occ/v2/payonepcpocc/.
+-->
+<extensioninfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:noNamespaceSchemaLocation="extensioninfo.xsd">
+
+    <extension name="payonepcpocc"
+               classprefix="Payonepcpocc"
+               abstractclassprefix="Generated"
+               description="PAYONE Commerce Platform OCC endpoints"
+               jaloLogicFree="true"
+               managername="PayonepcpoccManager"
+               managersuperclass="de.hybris.platform.jalo.extension.Extension"
+               version="1.0.0">
+
+        <!-- Dependency direction: occ -> facades -> core.
+             commercewebservices supplies the OCC v2 webapp this extension
+             plugs its controllers into. -->
+        <requires-extension name="payonepcpfacades"/>
+        <requires-extension name="commercewebservices"/>
+
+        <!-- Core module - generates WsDTO classes from beans.xml -->
+        <coremodule generated="true"
+                    manager="com.payone.pcp.occ.jalo.PayonepcpoccManager"
+                    packageroot="com.payone.pcp.occ"/>
+
+    </extension>
+</extensioninfo>

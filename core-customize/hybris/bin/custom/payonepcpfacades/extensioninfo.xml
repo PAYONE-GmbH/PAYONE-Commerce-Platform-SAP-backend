@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    payonepcpfacades extension metadata.
+    DTO/Data assembly and populators between the payonepcpcore domain model and
+    the OCC REST contract, plus checkout orchestration and place-order.
+    Plain core extension: the REST surface lives in
+    payonepcpocc, so this extension declares no web module.
+-->
+<extensioninfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:noNamespaceSchemaLocation="extensioninfo.xsd">
+
+    <extension name="payonepcpfacades"
+               classprefix="Payonepcpfacades"
+               abstractclassprefix="Generated"
+               jaloLogicFree="true"
+               managername="PayonepcpfacadesManager"
+               managersuperclass="de.hybris.platform.jalo.extension.Extension"
+               version="1.0.0">
+
+        <!-- payonepcpcore supplies the PCP domain model, config service and
+             strategies; commercefacades supplies the OOTB Data/Converter/
+             Populator infrastructure this layer builds on. -->
+        <requires-extension name="payonepcpcore"/>
+        <requires-extension name="commercefacades"/>
+
+        <!-- Core module - generates model + DTO classes from items.xml / beans.xml -->
+        <coremodule generated="true"
+                    manager="com.payone.pcp.facades.jalo.PayonepcpfacadesManager"
+                    packageroot="com.payone.pcp.facades"/>
+
+    </extension>
+</extensioninfo>

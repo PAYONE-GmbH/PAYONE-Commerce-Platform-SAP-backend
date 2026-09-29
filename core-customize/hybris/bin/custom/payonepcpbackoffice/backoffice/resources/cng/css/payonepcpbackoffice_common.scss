@@ -1,0 +1,13 @@
+/* Monochrome, heavier redraw of the PAYONE favicon for the top-level node. */
+div.yw-explorerTree .y-tree-icon-payonepcpbackoffice_treenode_payone .y-tree-icon,
+div.yw-sideNavigation .y-tree-icon-payonepcpbackoffice_treenode_payone .y-tree-icon {
+	background-image: url("images/payone-icon-black.png");
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: contain;
+}
+
+div.yw-explorerTree .y-tree-icon-payonepcpbackoffice_treenode_payone .y-tree-icon::before,
+div.yw-sideNavigation .y-tree-icon-payonepcpbackoffice_treenode_payone .y-tree-icon::before {
+	content: none;
+}

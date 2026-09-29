@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    PayoneCheckoutFacade backs the 3 OCC checkout endpoints via payonepcpocc.
+    PayonePaymentOperationsFacade is separate - Backoffice/internal only, never OCC-exposed.
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans
+           http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <alias alias="payoneCheckoutFacade" name="defaultPayoneCheckoutFacade"/>
+    <bean id="defaultPayoneCheckoutFacade"
+          class="com.payone.pcp.facades.impl.DefaultPayoneCheckoutFacade">
+        <property name="modelService" ref="modelService"/>
+        <property name="cartService" ref="cartService"/>
+        <property name="commerceCheckoutService" ref="commerceCheckoutService"/>
+        <property name="payoneConfigurationService" ref="payoneConfigurationService"/>
+        <property name="payoneCommerceCaseService" ref="payoneCommerceCaseService"/>
+        <property name="payoneAuthenticationService" ref="payoneAuthenticationService"/>
+        <property name="payoneTransactionService" ref="payoneTransactionService"/>
+        <property name="paymentExecutionRequestConverter" ref="paymentExecutionRequestConverter"/>
+        <property name="pcpAmountOfMoneyConverter" ref="pcpAmountOfMoneyConverter"/>
+        <property name="payonePcpClientFactory" ref="payonePcpClientFactory"/>
+        <property name="createCommerceCaseRequestConverter" ref="createCommerceCaseRequestConverter"/>
+        <property name="createCheckoutRequestConverter" ref="createCheckoutRequestConverter"/>
+        <!-- Additive strategy-routed path -->
+        <property name="paymentStrategyRegistry" ref="paymentStrategyRegistry"/>
+        <property name="payoneCheckoutService" ref="payoneCheckoutService"/>
+        <property name="payoneAuthorizationResultTransformer" ref="payoneAuthorizationResultTransformer"/>
+    </bean>
+
+    <bean id="payoneAuthorizationResultTransformer"
+          class="com.payone.pcp.facades.converter.PayoneAuthorizationResultTransformer"/>
+
+    <alias alias="payonePaymentOperationsFacade" name="defaultPayonePaymentOperationsFacade"/>
+    <bean id="defaultPayonePaymentOperationsFacade"
+          class="com.payone.pcp.facades.impl.DefaultPayonePaymentOperationsFacade">
+        <property name="payoneConfigurationService" ref="payoneConfigurationService"/>
+        <property name="payoneTransactionService" ref="payoneTransactionService"/>
+        <property name="paymentStrategyRegistry" ref="paymentStrategyRegistry"/>
+        <property name="pcpAmountOfMoneyConverter" ref="pcpAmountOfMoneyConverter"/>
+    </bean>
+
+    <!-- Backoffice Capture/Refund for a single PayoneCheckout (feature flag, live PCP state, row lock). -->
+    <alias alias="payoneCheckoutOperationsFacade" name="defaultPayoneCheckoutOperationsFacade"/>
+    <bean id="defaultPayoneCheckoutOperationsFacade"
+          class="com.payone.pcp.facades.impl.DefaultPayoneCheckoutOperationsFacade">
+        <property name="payonePaymentOperationsFacade" ref="payonePaymentOperationsFacade"/>
+        <property name="payoneCheckoutService" ref="payoneCheckoutService"/>
+        <property name="payoneConfigurationService" ref="payoneConfigurationService"/>
+        <property name="modelService" ref="modelService"/>
+        <property name="userService" ref="userService"/>
+        <property name="configurationService" ref="configurationService"/>
+    </bean>
+
+</beans>

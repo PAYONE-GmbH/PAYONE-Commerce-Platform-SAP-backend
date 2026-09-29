@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!-- Data beans (DTOs) for the PCP facade layer, backing PayoneCheckoutFacade. -->
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="beans.xsd">
+
+    <bean class="com.payone.pcp.facades.data.CommerceCaseResultData">
+        <description>
+            Result of PayoneCheckoutFacade.createOrGetCommerceCase() — the PCP
+            commerce case + checkout identifiers for the current cart.
+        </description>
+        <property name="commerceCaseId"          type="String"/>
+        <property name="checkoutId"              type="String"/>
+        <property name="amount"                  type="Long"/>
+        <property name="currencyIsoCode"         type="String"/>
+        <property name="allowedPaymentActions"   type="java.util.List&lt;java.lang.String&gt;"/>
+    </bean>
+
+    <bean class="com.payone.pcp.facades.data.AuthenticationTokenResultData">
+        <description>
+            Result of PayoneCheckoutFacade.createAuthenticationToken() — the
+            merchant JWT for the hosted card iframe.
+        </description>
+        <property name="token"                   type="String"/>
+        <property name="id"                      type="String"/>
+        <property name="expirationDate"          type="String"/>
+    </bean>
+
+    <bean class="com.payone.pcp.facades.data.PaymentRequestData">
+        <description>
+            Frontend-supplied request for
+            PayoneCheckoutFacade.executePaymentAndPlaceOrder() — CARD or SEPA.
+        </description>
+        <property name="commerceCaseId"          type="String"/>
+        <property name="checkoutId"              type="String"/>
+        <property name="paymentMethod"           type="String"/>
+        <property name="paymentProcessingToken"  type="String"/>
+        <property name="paymentProductId"        type="Integer"/>
+        <property name="iban"                    type="String"/>
+        <property name="accountHolder"           type="String"/>
+        <property name="creditorId"              type="String"/>
+        <property name="mandateReference"        type="String"/>
+        <property name="dateOfSignature"         type="String"/>
+    </bean>
+
+    <bean class="com.payone.pcp.facades.data.PaymentResultData">
+        <description>
+            Result of PayoneCheckoutFacade.executePaymentAndPlaceOrder() — the
+            placed order (if successful) and the mapped payment status.
+        </description>
+        <property name="orderCode"               type="String"/>
+        <property name="paymentStatus"           type="String"/>
+        <property name="redirectUrl"             type="String"/>
+    </bean>
+
+    <!-- Strategy-routed path: dispatches via PaymentStrategyRegistry, split into authorize/place-order steps. -->
+
+    <bean class="com.payone.pcp.facades.data.PaymentDetailsData">
+        <description>
+            Frontend-supplied payment details for
+            PayoneCheckoutFacade.authorizePayment() — dispatch is by the
+            explicit paymentProductId parameter, not a paymentMethod string.
+        </description>
+        <property name="paymentProcessingToken"  type="String"/>
+        <property name="iban"                    type="String"/>
+        <property name="bic"                     type="String">
+            <description>BankAccountInformation.bic - only read for Secured Direct Debit (3392);
+                optional except where the BIC cannot be derived from the IBAN (Switzerland). SEPA
+                (771) does not read this field.</description>
+        </property>
+        <property name="accountHolder"           type="String"/>
+        <property name="creditorId"              type="String"/>
+        <property name="mandateReference"        type="String"/>
+        <property name="dateOfSignature"         type="String"/>
+        <property name="customerIpAddress"       type="String">
+            <description>PaymentMethodSpecificInput.customerDevice.ipAddress - mandatory for every
+                PAYONE BNPL (FINANCING) payment; not read for other families today.</description>
+        </property>
+        <property name="googlePayEncryptedPaymentData" type="String">
+            <description>MobilePaymentMethodSpecificInput.encryptedPaymentData - Google Pay's
+                one-time payment token; not read for other families today. Not yet wired into
+                DefaultPayoneCheckoutFacade (see PayonePaymentInfoModel.googlePayEncryptedPaymentData
+                - Google Pay needs One-Step checkout, which the Step-by-Step
+                authorizePayment path does not support yet).</description>
+        </property>
+        <property name="applePayEncryptedPaymentData" type="String">
+            <description>MobilePaymentMethodSpecificInput.encryptedPaymentData for Apple Pay - minimal
+                cut, not the full PKPaymentToken shape. Not yet wired
+                into DefaultPayoneCheckoutFacade (same One-Step gap as Google Pay).</description>
+        </property>
+        <property name="applePayPublicKeyHash" type="String">
+            <description>MobilePaymentMethodSpecificInput.publicKeyHash for Apple Pay - mandatory
+                alongside applePayEncryptedPaymentData/applePayEphemeralKey.</description>
+        </property>
+        <property name="applePayEphemeralKey" type="String">
+            <description>MobilePaymentMethodSpecificInput.ephemeralKey for Apple Pay - mandatory
+                alongside applePayEncryptedPaymentData/applePayPublicKeyHash.</description>
+        </property>
+    </bean>
+
+    <bean class="com.payone.pcp.facades.data.PayoneAuthorizationResultData">
+        <description>
+            Result of PayoneCheckoutFacade.authorizePayment() / handleRedirectCallback() —
+            tells the frontend "redirect now", "payment done", or "wait".
+        </description>
+        <property name="redirect"                type="boolean"/>
+        <property name="redirectUrl"             type="String"/>
+        <property name="paymentId"               type="String"/>
+        <property name="status"                  type="String"/>
+    </bean>
+
+    <bean class="com.payone.pcp.facades.data.PayoneCheckoutData">
+        <description>
+            Result of PayoneCheckoutFacade.placeOrder() (strategy-routed path)
+            — the PCP identifiers and mapped status for the placed order.
+        </description>
+        <property name="commerceCaseId"          type="String"/>
+        <property name="checkoutId"              type="String"/>
+        <property name="paymentExecutionId"      type="String"/>
+        <property name="paymentId"               type="String"/>
+        <property name="status"                  type="String"/>
+    </bean>
+
+    <bean class="com.payone.pcp.facades.data.PaymentExecutionResultData">
+        <description>
+            Result of PayoneCheckoutFacade.capturePayment()/cancelPayment()/
+            refundPayment() — the mapped status after a
+            post-authorization payment-execution operation. Never a redirect
+            (only Create can redirect), so this stays smaller than
+            PayoneAuthorizationResultData rather than reusing it.
+        </description>
+        <property name="paymentId"               type="String"/>
+        <property name="paymentExecutionId"      type="String"/>
+        <property name="status"                  type="String"/>
+    </bean>
+
+</beans>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+    DTO-only layer, no item types declared here. Any type added later takes the next
+    free typecode from the payonepcp* range (15110-15139), see payonepcpcore/README.md.
+-->
+<items xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="items.xsd">
+
+    <itemtypes>
+    </itemtypes>
+
+</items>

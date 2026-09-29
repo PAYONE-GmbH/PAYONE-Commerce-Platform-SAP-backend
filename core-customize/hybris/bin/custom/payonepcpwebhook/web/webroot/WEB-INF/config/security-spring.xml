@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Copyright (c) 2020 SAP SE or an SAP affiliate company. All rights reserved.
+-->
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:security="http://www.springframework.org/schema/security"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+		http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/security 
+		http://www.springframework.org/schema/security/spring-security.xsd">
+
+		<!-- Commons security imports -->
+		<import resource="classpath:webservicescommons/commons-security-spring.xml"/>
+
+ 		<!-- Security configuration for swagger resources -->
+ 		<!-- configured in classpath:webservicescommons/commons-security-spring.xml since 2211 -->
+
+		<!-- Security configuration for resources -->
+		<security:http pattern="/**" use-authorization-manager="true" use-expressions="true" xmlns="http://www.springframework.org/schema/security">
+
+			<!-- for PRODUCTION make sure that webservicescommons.required.channel=https -->
+
+			<!-- The receiver path: the only opening in this webapp, and the reason
+			     payonepcpwebhook is a separate extension rather than a controller
+			     inside payonepcpocc. PAYONE cannot present a token, so authentication
+			     is moved to the payload: HMAC-SHA256 over the raw body
+			     (DefaultPayoneWebhookSignatureService) plus replay defence by eventId
+			     dedup (DefaultPayoneWebhookEventService), both mandatory on every
+			     request before any state changes - that is what makes permitAll safe
+			     here. Scoped to an exact path (not a prefix) and POST only; any other
+			     verb on /webhooks falls through to isAuthenticated() below. Do not
+			     widen this rule: a path added here leaves authentication entirely,
+			     one added below stays protected. -->
+			<security:intercept-url pattern="/webhooks" method="POST" access="permitAll" requires-channel="#{configurationService.configuration.getString('webservicescommons.required.channel', 'https')}" />
+
+			<!-- Everything else, including any other verb on /webhooks, stays closed. -->
+			<security:intercept-url pattern="/**" access="isAuthenticated()" requires-channel="#{configurationService.configuration.getString('webservicescommons.required.channel', 'https')}" />
+
+			<security:port-mappings>
+				<security:port-mapping http="#{configurationService.configuration.getProperty('tomcat.http.port')}" https="#{configurationService.configuration.getProperty('tomcat.ssl.port')}" />
+				<security:port-mapping http="#{configurationService.configuration.getProperty('embeddedserver.http.port')}" https="#{configurationService.configuration.getProperty('embeddedserver.ssl.port')}" />
+			</security:port-mappings>
+
+			<security:custom-filter ref="jwtAuthenticationUserFilter" after="LAST" />
+
+			<security:access-denied-handler ref="oAuth2AccessDeniedHandler" />
+
+			<security:oauth2-resource-server entry-point-ref="oAuth2AuthenticationEntryPoint">
+				<security:jwt decoder-ref="jwtDecoder" jwt-authentication-converter-ref="jwtAuthenticationRoleConverter" />
+			</security:oauth2-resource-server>
+			
+			<security:headers>
+				<security:content-type-options />
+				<security:hsts include-subdomains="true" max-age-seconds="16070400" />
+				<security:xss-protection />
+				<security:frame-options policy="SAMEORIGIN" />
+			</security:headers>
+			<security:csrf disabled="true"/>
+		</security:http>
+
+	</beans>

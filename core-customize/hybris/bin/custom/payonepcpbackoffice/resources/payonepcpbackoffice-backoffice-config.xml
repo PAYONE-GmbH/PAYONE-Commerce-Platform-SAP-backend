@@ -1,0 +1,448 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- PAYONE configuration is operator-managed. All payment/domain records are support-only. -->
+<config xmlns="http://www.hybris.com/cockpit/config"
+        xmlns:y="http://www.hybris.com/cockpit/config/hybris"
+        xmlns:n="http://www.hybris.com/cockpitng/config/explorertree"
+        xmlns:ss="http://www.hybris.com/cockpitng/config/simplesearch"
+        xmlns:as="http://www.hybris.com/cockpitng/config/advancedsearch"
+        xmlns:list="http://www.hybris.com/cockpitng/component/listView"
+        xmlns:ea="http://www.hybris.com/cockpitng/component/editorArea"
+        xmlns:dsb="http://www.hybris.com/cockpitng/config/dashboard"
+        xmlns:na="http://www.hybris.com/cockpitng/config/notifications">
+
+    <context component="explorer-tree" merge-by="module">
+        <n:explorer-tree>
+            <n:navigation-node id="payonepcpbackoffice.treenode.payone" position="13">
+                <n:navigation-node id="payonepcpbackoffice.treenode.configuration" position="10">
+                    <n:type-node code="PayoneConfiguration" id="payonepcpbackoffice.typenode.configuration"/>
+                </n:navigation-node>
+                <n:navigation-node id="payonepcpbackoffice.treenode.operations" position="20">
+                    <n:type-node code="PayoneCommerceCase" id="payonepcpbackoffice.typenode.commercecases"/>
+                    <n:type-node code="PayoneCheckout" id="payonepcpbackoffice.typenode.checkouts"/>
+                    <n:type-node code="PayonePaymentInfo" id="payonepcpbackoffice.typenode.paymentinfos"/>
+                    <n:type-node code="PayoneWebhookEvent" id="payonepcpbackoffice.typenode.webhooks"/>
+                </n:navigation-node>
+            </n:navigation-node>
+        </n:explorer-tree>
+    </context>
+
+    <context component="dashboard" principal="backofficeadministratorrole">
+        <dsb:dashboard defaultGridId="regular">
+            <dsb:grid id="regular" minScreenWidth="701" merge-mode="replace">
+                <dsb:placement widgetId="taskQueueSizeChart_master_Chart" width="2" y="0"/>
+                <dsb:placement widgetId="taskQueuePoolingSizeChart_master_Chart" y="1"/>
+                <dsb:placement widgetId="dbConnectionsInUseChart_master_Chart" x="1" y="1"/>
+                <dsb:placement widgetId="payoneOperationsOverview" width="2" y="2"/>
+                <dsb:placement widgetId="defaulMemoryChart" width="2" y="3"/>
+                <dsb:placement widgetId="defaulThreadsChart" y="4"/>
+                <dsb:placement widgetId="defaulOsChart" x="1" y="4"/>
+            </dsb:grid>
+        </dsb:dashboard>
+    </context>
+
+    <context type="PayoneConfiguration" component="base">
+        <y:base>
+            <y:labels>
+                <y:label>merchantId</y:label>
+            </y:labels>
+        </y:base>
+    </context>
+    <context type="PayoneCommerceCase" component="base">
+        <y:base>
+            <y:labels>
+                <y:label>commerceCaseId</y:label>
+            </y:labels>
+        </y:base>
+    </context>
+    <context type="PayoneCheckout" component="base">
+        <y:base>
+            <y:labels>
+                <y:label>checkoutId</y:label>
+            </y:labels>
+        </y:base>
+    </context>
+    <context type="PayonePaymentInfo" component="base">
+        <y:base>
+            <y:labels>
+                <y:label>paymentMethod</y:label>
+            </y:labels>
+        </y:base>
+    </context>
+    <context type="PayoneWebhookEvent" component="base">
+        <y:base>
+            <y:labels>
+                <y:label>eventId</y:label>
+            </y:labels>
+        </y:base>
+    </context>
+
+    <!-- Merchant configuration. apiSecret is deliberately absent: it is runtime-only. -->
+    <context type="PayoneConfiguration" component="simple-search">
+        <ss:simple-search>
+            <ss:field name="merchantId"/>
+            <ss:field name="apiEndpointHost"/>
+            <ss:sort-field name="merchantId" asc="true"/>
+        </ss:simple-search>
+    </context>
+    <context type="PayoneConfiguration" component="advanced-search">
+        <as:advanced-search connection-operator="AND">
+            <as:field-list>
+                <as:field name="merchantId" operator="contains" selected="true"/>
+                <as:field name="apiEndpointHost" operator="contains"/>
+                <as:field name="apiKeyId" operator="contains"/>
+                <as:field name="defaultAuthorizationMode" operator="equals"/>
+                <as:field name="active" operator="equals" selected="true"/>
+            </as:field-list>
+            <as:sort-field name="merchantId" asc="true"/>
+        </as:advanced-search>
+    </context>
+    <context type="PayoneConfiguration" component="listview">
+        <list:list-view refresh-after-object-creation="true">
+            <list:column qualifier="merchantId"/>
+            <list:column qualifier="apiEndpointHost"/>
+            <list:column qualifier="apiKeyId"/>
+            <list:column qualifier="defaultAuthorizationMode"/>
+            <list:column qualifier="allowedPaymentAction"/>
+            <list:column qualifier="active"/>
+            <list:column qualifier="modifiedtime"/>
+        </list:list-view>
+    </context>
+    <context type="PayoneConfiguration" component="editor-area" merge-by="type" parent="GenericItem">
+        <ea:editorArea>
+            <ea:tab name="payonepcpbackoffice.tab.configuration">
+                <ea:section name="payonepcpbackoffice.section.connection">
+                    <ea:attribute qualifier="merchantId"/>
+                    <ea:attribute qualifier="apiEndpointHost"/>
+                    <ea:attribute qualifier="apiKeyId"/>
+                    <ea:attribute qualifier="active"/>
+                </ea:section>
+                <ea:section name="payonepcpbackoffice.section.payment">
+                    <ea:attribute qualifier="defaultAuthorizationMode"/>
+                    <ea:attribute qualifier="allowedPaymentAction"/>
+                    <ea:attribute qualifier="paymentModes"/>
+                    <ea:attribute qualifier="captureDelayHours"/>
+                </ea:section>
+                <ea:section name="payonepcpbackoffice.section.checkout">
+                    <ea:attribute qualifier="askConsumerConsent"/>
+                    <ea:attribute qualifier="sessionTimeoutSeconds"/>
+                    <ea:attribute qualifier="returnUrl"/>
+                </ea:section>
+            </ea:tab>
+        </ea:editorArea>
+    </context>
+
+    <!-- Commerce cases -->
+    <context type="PayoneCommerceCase" component="simple-search">
+        <ss:simple-search>
+            <ss:field name="commerceCaseId"/>
+            <ss:field name="merchantReference"/>
+        </ss:simple-search>
+    </context>
+    <context type="PayoneCommerceCase" component="advanced-search">
+        <as:advanced-search>
+            <as:field-list>
+                <as:field name="commerceCaseId" operator="contains" selected="true"/>
+                <as:field name="merchantReference" operator="contains"/>
+                <as:field name="creationtime" operator="greaterOrEquals"/>
+                <as:field name="creationtime" operator="lessOrEquals"/>
+            </as:field-list>
+            <as:sort-field name="creationtime" asc="false"/>
+        </as:advanced-search>
+    </context>
+    <context type="PayoneCommerceCase" component="listview">
+        <list:list-view>
+            <list:column qualifier="commerceCaseId"/>
+            <list:column qualifier="merchantReference"/>
+            <list:column qualifier="checkouts"/>
+            <list:column qualifier="creationtime"/>
+        </list:list-view>
+    </context>
+    <context type="PayoneCommerceCase" component="editor-area" merge-by="type" parent="GenericItem">
+        <ea:editorArea>
+            <ea:tab name="payonepcpbackoffice.tab.commercecase">
+                <ea:section name="payonepcpbackoffice.section.identifiers">
+                    <ea:attribute qualifier="commerceCaseId" readonly="true"/>
+                    <ea:attribute qualifier="merchantReference" readonly="true"/>
+                </ea:section>
+                <ea:section name="payonepcpbackoffice.section.references">
+                    <ea:attribute qualifier="checkouts" readonly="true"/>
+                </ea:section>
+                <ea:section name="payonepcpbackoffice.section.audit">
+                    <ea:attribute qualifier="creationtime" readonly="true"/>
+                    <ea:attribute qualifier="modifiedtime" readonly="true"/>
+                </ea:section>
+            </ea:tab>
+        </ea:editorArea>
+    </context>
+
+    <!-- Checkouts -->
+    <context type="PayoneCheckout" component="simple-search">
+        <ss:simple-search>
+            <ss:field name="checkoutId"/>
+            <ss:field name="paymentExecutionId"/>
+            <ss:field name="paymentId"/>
+        </ss:simple-search>
+    </context>
+    <context type="PayoneCheckout" component="advanced-search">
+        <as:advanced-search>
+            <as:field-list>
+                <as:field name="checkoutId" operator="contains" selected="true"/>
+                <as:field name="paymentExecutionId" operator="contains"/>
+                <as:field name="paymentId" operator="contains"/>
+                <as:field name="status" operator="equals" selected="true"/>
+                <as:field name="order" operator="equals"/>
+                <as:field name="commerceCase" operator="equals"/>
+                <as:field name="creationtime" operator="greaterOrEquals"/>
+                <as:field name="creationtime" operator="lessOrEquals"/>
+            </as:field-list>
+            <as:sort-field name="creationtime" asc="false"/>
+        </as:advanced-search>
+    </context>
+    <context type="PayoneCheckout" component="listview">
+        <list:list-view>
+            <list:column qualifier="checkoutId"/>
+            <list:column qualifier="paymentExecutionId"/>
+            <list:column qualifier="paymentId"/>
+            <list:column qualifier="status"/>
+            <list:column qualifier="amount"/>
+            <list:column qualifier="currencyIsoCode"/>
+            <list:column qualifier="order"/>
+            <list:column qualifier="creationtime"/>
+        </list:list-view>
+    </context>
+    <context type="PayoneCheckout" component="editor-area" merge-by="type" parent="GenericItem">
+        <ea:editorArea>
+            <ea:tab name="payonepcpbackoffice.tab.checkout">
+                <ea:section name="payonepcpbackoffice.section.identifiers">
+                    <ea:attribute qualifier="checkoutId" readonly="true"/>
+                    <ea:attribute qualifier="paymentExecutionId" readonly="true"/>
+                    <ea:attribute qualifier="paymentId" readonly="true"/>
+                    <ea:attribute qualifier="idempotencyKey" readonly="true"/>
+                </ea:section>
+                <ea:section name="payonepcpbackoffice.section.payment">
+                    <ea:attribute qualifier="status" readonly="true"/>
+                    <ea:attribute qualifier="amount" readonly="true"/>
+                    <ea:attribute qualifier="currencyIsoCode" readonly="true"/>
+                </ea:section>
+                <ea:section name="payonepcpbackoffice.section.references">
+                    <ea:attribute qualifier="commerceCase" readonly="true"/>
+                    <ea:attribute qualifier="order" readonly="true"/>
+                </ea:section>
+            </ea:tab>
+        </ea:editorArea>
+    </context>
+
+    <!-- Payment information -->
+    <context type="PayonePaymentInfo" component="simple-search">
+        <ss:simple-search>
+            <ss:field name="paymentProcessingToken"/>
+            <ss:field name="reportingToken"/>
+        </ss:simple-search>
+    </context>
+    <context type="PayonePaymentInfo" component="advanced-search">
+        <as:advanced-search>
+            <as:field-list>
+                <as:field name="paymentProcessingToken" operator="contains"/>
+                <as:field name="reportingToken" operator="contains"/>
+                <as:field name="paymentProductId" operator="equals"/>
+                <as:field name="paymentMethod" operator="contains"/>
+                <as:field name="payoneCheckoutType" operator="equals"/>
+                <as:field name="saved" operator="equals"/>
+                <as:field name="user" operator="equals"/>
+            </as:field-list>
+        </as:advanced-search>
+    </context>
+    <context type="PayonePaymentInfo" component="listview">
+        <list:list-view>
+            <list:column qualifier="paymentMethod"/>
+            <list:column qualifier="paymentProductId"/>
+            <list:column qualifier="saved"/>
+            <list:column qualifier="user"/>
+        </list:list-view>
+    </context>
+    <context type="PayonePaymentInfo" component="editor-area" merge-by="type" parent="PaymentInfo">
+        <ea:editorArea>
+            <ea:tab name="payonepcpbackoffice.tab.paymentinfo">
+                <ea:section name="payonepcpbackoffice.section.payment">
+                    <ea:attribute qualifier="paymentMethod" readonly="true"/>
+                    <ea:attribute qualifier="paymentProductId" readonly="true"/>
+                    <ea:attribute qualifier="payoneCheckoutType" readonly="true"/>
+                    <ea:attribute qualifier="saved" readonly="true"/>
+                </ea:section>
+                <ea:section name="payonepcpbackoffice.section.tokens">
+                    <ea:attribute qualifier="paymentProcessingToken" readonly="true"/>
+                    <ea:attribute qualifier="reportingToken" readonly="true"/>
+                    <ea:attribute qualifier="usedSavedPayment" readonly="true"/>
+                </ea:section>
+                <ea:section name="payonepcpbackoffice.section.references">
+                    <ea:attribute qualifier="user" readonly="true"/>
+                    <ea:attribute qualifier="billingAddress" readonly="true"/>
+                </ea:section>
+            </ea:tab>
+        </ea:editorArea>
+    </context>
+
+    <!-- Webhook event log -->
+    <context type="PayoneWebhookEvent" component="simple-search">
+        <ss:simple-search>
+            <ss:field name="eventId"/>
+            <ss:field name="eventType"/>
+            <ss:field name="merchantId"/>
+            <ss:sort-field name="receivedTime" asc="false"/>
+        </ss:simple-search>
+    </context>
+    <context type="PayoneWebhookEvent" component="advanced-search">
+        <as:advanced-search connection-operator="AND">
+            <as:field-list>
+                <as:field name="eventId" operator="contains"/>
+                <as:field name="eventType" operator="contains"/>
+                <as:field name="merchantId" operator="contains"/>
+                <as:field name="processed" operator="equals" selected="true"/>
+                <as:field name="commerceCase" operator="equals"/>
+                <as:field name="receivedTime" operator="greaterOrEquals"/>
+                <as:field name="receivedTime" operator="lessOrEquals"/>
+            </as:field-list>
+            <as:sort-field name="receivedTime" asc="false"/>
+        </as:advanced-search>
+    </context>
+    <context type="PayoneWebhookEvent" component="listview">
+        <list:list-view>
+            <list:column qualifier="eventId"/>
+            <list:column qualifier="eventType"/>
+            <list:column qualifier="merchantId"/>
+            <list:column qualifier="processed"/>
+            <list:column qualifier="attempts"/>
+            <list:column qualifier="receivedTime"/>
+            <list:column qualifier="processedTime"/>
+            <list:column qualifier="commerceCase"/>
+        </list:list-view>
+    </context>
+    <context type="PayoneWebhookEvent" component="editor-area" merge-by="type" parent="GenericItem">
+        <ea:editorArea>
+            <ea:tab name="payonepcpbackoffice.tab.webhook">
+                <ea:section name="payonepcpbackoffice.section.event">
+                    <ea:attribute qualifier="eventId" readonly="true"/>
+                    <ea:attribute qualifier="eventType" readonly="true"/>
+                    <ea:attribute qualifier="merchantId" readonly="true"/>
+                    <ea:attribute qualifier="processed" readonly="true"/>
+                    <ea:attribute qualifier="attempts" readonly="true"/>
+                    <ea:attribute qualifier="receivedTime" readonly="true"/>
+                    <ea:attribute qualifier="processedTime" readonly="true"/>
+                    <ea:attribute qualifier="commerceCase" readonly="true"/>
+                </ea:section>
+                <ea:section name="payonepcpbackoffice.section.payload">
+                    <ea:attribute qualifier="payload" readonly="true" editor="com.hybris.cockpitng.editor.impex.textbox"/>
+                </ea:section>
+            </ea:tab>
+        </ea:editorArea>
+    </context>
+
+    <!-- PAYONE fields on platform-owned types -->
+    <context type="BaseStore" component="editor-area" merge-by="type" >
+        <ea:editorArea>
+            <ea:tab name="payonepcpbackoffice.tab.payone">
+                <ea:section name="payonepcpbackoffice.section.store">
+                    <ea:attribute qualifier="payoneConfiguration"/>
+                    <ea:attribute qualifier="payoneCheckoutType"/>
+                </ea:section>
+            </ea:tab>
+        </ea:editorArea>
+    </context>
+    <context type="Order" component="editor-area" merge-by="type" >
+        <ea:editorArea>
+            <ea:tab name="payonepcpbackoffice.tab.payone">
+                <ea:section name="payonepcpbackoffice.section.identifiers">
+                    <ea:attribute qualifier="payoneCommerceCaseId" readonly="true"/>
+                </ea:section>
+            </ea:tab>
+        </ea:editorArea>
+    </context>
+    <context type="Cart" component="editor-area" merge-by="type">
+        <ea:editorArea>
+            <ea:tab name="payonepcpbackoffice.tab.payone">
+                <ea:section name="payonepcpbackoffice.section.identifiers">
+                    <ea:attribute qualifier="payoneCommerceCaseId" readonly="true"/>
+                    <ea:attribute qualifier="payoneCheckoutId" readonly="true"/>
+                </ea:section>
+            </ea:tab>
+        </ea:editorArea>
+    </context>
+    <context type="PaymentTransaction" component="editor-area" merge-by="type" >
+        <ea:editorArea>
+            <ea:tab name="payonepcpbackoffice.tab.payone">
+                <ea:section name="payonepcpbackoffice.section.identifiers">
+                    <ea:attribute qualifier="payoneCommerceCaseId" readonly="true"/>
+                    <ea:attribute qualifier="payoneCheckoutId" readonly="true"/>
+                    <ea:attribute qualifier="payonePaymentExecutionId" readonly="true"/>
+                    <ea:attribute qualifier="payonePaymentId" readonly="true"/>
+                    <ea:attribute qualifier="payoneRawTransactionCode" readonly="true"/>
+                </ea:section>
+            </ea:tab>
+        </ea:editorArea>
+    </context>
+
+    <!-- System-owned records cannot be created manually. -->
+    <context component="listviewactions" type="PayoneCommerceCase" merge-by="type">
+        <y:actions>
+            <y:group qualifier="common">
+                <y:action action-id="com.hybris.cockpitng.action.create" merge-mode="remove"/>
+            </y:group>
+        </y:actions>
+    </context>
+    <context component="listviewactions" type="PayoneCheckout" merge-by="type">
+        <y:actions>
+            <y:group qualifier="common">
+                <y:action action-id="com.hybris.cockpitng.action.create" merge-mode="remove"/>
+            </y:group>
+        </y:actions>
+    </context>
+    <context component="listviewactions" type="PayonePaymentInfo" merge-by="type">
+        <y:actions>
+            <y:group qualifier="common">
+                <y:action action-id="com.hybris.cockpitng.action.create" merge-mode="remove"/>
+            </y:group>
+        </y:actions>
+    </context>
+    <context component="listviewactions" type="PayoneWebhookEvent" merge-by="type">
+        <y:actions>
+            <y:group qualifier="common">
+                <y:action action-id="com.hybris.cockpitng.action.create" merge-mode="remove"/>
+            </y:group>
+        </y:actions>
+    </context>
+    <!-- Capture/Refund on the Checkout editor. All server-side guards live in
+         PayoneCheckoutOperationsFacade (payonepcpfacades). Cancel is out of scope. -->
+    <context component="editorareaactions" type="PayoneCheckout" merge-by="type">
+        <y:actions>
+            <y:group qualifier="common">
+                <y:label>actiongroup.common</y:label>
+                <y:action action-id="com.payone.pcp.backoffice.actions.payonecheckoutcaptureaction" property="currentObject">
+                    <y:parameter>
+                        <y:name>viewMode</y:name>
+                        <y:value>iconAndText</y:value>
+                    </y:parameter>
+                </y:action>
+                <y:action action-id="com.payone.pcp.backoffice.actions.payonecheckoutrefundaction" property="currentObject">
+                    <y:parameter>
+                        <y:name>viewMode</y:name>
+                        <y:value>iconAndText</y:value>
+                    </y:parameter>
+                </y:action>
+            </y:group>
+        </y:actions>
+    </context>
+    <context component="notification-area">
+        <na:notification-area>
+            <na:notifications eventType="payonepcpbackoffice.paymentaction.success" level="SUCCESS">
+                <na:message>payonepcpbackoffice.paymentaction.success</na:message>
+            </na:notifications>
+            <na:notifications eventType="payonepcpbackoffice.paymentaction.rejected" level="FAILURE">
+                <na:message>payonepcpbackoffice.paymentaction.rejected</na:message>
+            </na:notifications>
+            <na:notifications eventType="payonepcpbackoffice.paymentaction.indeterminate" level="WARNING">
+                <na:message>payonepcpbackoffice.paymentaction.indeterminate</na:message>
+            </na:notifications>
+        </na:notification-area>
+    </context>
+
+</config>

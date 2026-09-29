@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Core-layer bean wiring for the PCP webhook receiver.
+
+    These beans live in the core context, not the web one, because the
+    receiver's logic is reachable without a servlet: a replay job, an
+    integration test or a Backoffice action calls the same services to
+    re-apply a stored PayoneWebhookEvent. Only the controller and the
+    exception advice are web-layer, wired in
+    web/webroot/WEB-INF/payonepcpwebhook-web-spring.xml, which resolves these
+    beans from this context as its parent.
+
+    Beans are declared via XML alias/bean pairs rather than @Service so a
+    project can repoint e.g. `payoneWebhookSignatureService` at its own
+    implementation without touching this file or recompiling - the SAP
+    Commerce extensibility idiom, which annotation-scanned beans don't
+    support. It also keeps these beans out of the web context's component
+    scan, which covers the same base package and would otherwise instantiate
+    a second copy of each.
+
+    The component-scan below stays for future annotated helpers; it currently
+    matches nothing, since every service here is declared explicitly and the
+    controllers compile into the webapp, not the extension jar.
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans
+           http://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/context
+           http://www.springframework.org/schema/context/spring-context.xsd
+           http://www.springframework.org/schema/util
+           http://www.springframework.org/schema/util/spring-util.xsd">
+
+    <context:component-scan base-package="com.payone.pcp.webhook"/>
+
+    <!-- Lookups the webhook receiver needs, by PCP natural key. See the DAO
+         class comment on why every query is parameterised. -->
+    <alias alias="payoneWebhookEventDao" name="defaultPayoneWebhookEventDao"/>
+    <bean id="defaultPayoneWebhookEventDao"
+          class="com.payone.pcp.webhook.dao.impl.DefaultPayoneWebhookEventDao">
+        <property name="flexibleSearchService" ref="flexibleSearchService"/>
+    </bean>
+
+    <!-- The trust boundary. HMAC verification is the only thing standing
+         between this unauthenticated path and forged payment state - see the
+         class comment for the algorithm and the open question on key material. -->
+    <alias alias="payoneWebhookSignatureService" name="defaultPayoneWebhookSignatureService"/>
+    <bean id="defaultPayoneWebhookSignatureService"
+          class="com.payone.pcp.webhook.service.impl.DefaultPayoneWebhookSignatureService">
+        <property name="payoneConfigurationService" ref="payoneConfigurationService"/>
+    </bean>
+
+    <alias alias="payoneWebhookPayloadParser" name="defaultPayoneWebhookPayloadParser"/>
+    <bean id="defaultPayoneWebhookPayloadParser"
+          class="com.payone.pcp.webhook.service.impl.DefaultPayoneWebhookPayloadParser"/>
+
+    <!-- Dedup + durable storage of the verified payload. -->
+    <alias alias="payoneWebhookEventService" name="defaultPayoneWebhookEventService"/>
+    <bean id="defaultPayoneWebhookEventService"
+          class="com.payone.pcp.webhook.service.impl.DefaultPayoneWebhookEventService">
+        <property name="modelService" ref="modelService"/>
+        <property name="timeService" ref="timeService"/>
+        <property name="payoneWebhookEventDao" ref="payoneWebhookEventDao"/>
+    </bean>
+
+    <alias alias="payoneWebhookTargetResolver" name="defaultPayoneWebhookTargetResolver"/>
+    <bean id="defaultPayoneWebhookTargetResolver"
+          class="com.payone.pcp.webhook.service.impl.DefaultPayoneWebhookTargetResolver">
+        <property name="payoneWebhookEventDao" ref="payoneWebhookEventDao"/>
+    </bean>
+
+    <!-- Handlers - the extension point for later phases. New handlers add
+         their own beans to the list below without touching the receiver, the
+         verifier or the dedup store. They run in list order for a given
+         event, and must be idempotent: a redelivery of an event whose
+         earlier processing failed replays through them again. See the
+         contract on PayoneWebhookEventHandler. -->
+    <bean id="abstractPayoneTransactionWebhookHandler" abstract="true">
+        <property name="modelService" ref="modelService"/>
+        <property name="payoneTransactionService" ref="payoneTransactionService"/>
+        <!-- Resolves the envelope's amountOfMoney.currencyCode to a CurrencyModel;
+             the entry's amount is meaningless without the currency it was in. -->
+        <property name="commonI18NService" ref="commonI18NService"/>
+    </bean>
+
+    <alias alias="payonePaymentWebhookHandler" name="defaultPayonePaymentWebhookHandler"/>
+    <bean id="defaultPayonePaymentWebhookHandler"
+          class="com.payone.pcp.webhook.handler.impl.PayonePaymentWebhookHandler"
+          parent="abstractPayoneTransactionWebhookHandler"/>
+
+    <alias alias="payoneRefundWebhookHandler" name="defaultPayoneRefundWebhookHandler"/>
+    <bean id="defaultPayoneRefundWebhookHandler"
+          class="com.payone.pcp.webhook.handler.impl.PayoneRefundWebhookHandler"
+          parent="abstractPayoneTransactionWebhookHandler"/>
+
+    <alias alias="payonePayoutWebhookHandler" name="defaultPayonePayoutWebhookHandler"/>
+    <bean id="defaultPayonePayoutWebhookHandler"
+          class="com.payone.pcp.webhook.handler.impl.PayonePayoutWebhookHandler"/>
+
+    <alias alias="payoneCommerceCaseWebhookHandler" name="defaultPayoneCommerceCaseWebhookHandler"/>
+    <bean id="defaultPayoneCommerceCaseWebhookHandler"
+          class="com.payone.pcp.webhook.handler.impl.PayoneCommerceCaseWebhookHandler">
+        <property name="modelService" ref="modelService"/>
+        <property name="payoneWebhookEventDao" ref="payoneWebhookEventDao"/>
+    </bean>
+
+    <alias alias="payoneCheckoutStatusWebhookHandler" name="defaultPayoneCheckoutStatusWebhookHandler"/>
+    <bean id="defaultPayoneCheckoutStatusWebhookHandler"
+          class="com.payone.pcp.webhook.handler.impl.PayoneCheckoutStatusWebhookHandler">
+        <property name="modelService" ref="modelService"/>
+    </bean>
+
+    <alias alias="payonePaymentExecutionWebhookHandler" name="defaultPayonePaymentExecutionWebhookHandler"/>
+    <bean id="defaultPayonePaymentExecutionWebhookHandler"
+          class="com.payone.pcp.webhook.handler.impl.PayonePaymentExecutionWebhookHandler"
+          parent="abstractPayoneTransactionWebhookHandler"/>
+
+    <alias alias="payonePaymentInformationWebhookHandler" name="defaultPayonePaymentInformationWebhookHandler"/>
+    <bean id="defaultPayonePaymentInformationWebhookHandler"
+          class="com.payone.pcp.webhook.handler.impl.PayonePaymentInformationWebhookHandler"
+          parent="abstractPayoneTransactionWebhookHandler"/>
+
+    <util:list id="payoneWebhookEventHandlers"
+               value-type="com.payone.pcp.webhook.handler.PayoneWebhookEventHandler">
+        <ref bean="payonePaymentWebhookHandler"/>
+        <ref bean="payoneRefundWebhookHandler"/>
+        <ref bean="payonePayoutWebhookHandler"/>
+        <ref bean="payoneCommerceCaseWebhookHandler"/>
+        <ref bean="payoneCheckoutStatusWebhookHandler"/>
+        <ref bean="payonePaymentExecutionWebhookHandler"/>
+        <ref bean="payonePaymentInformationWebhookHandler"/>
+    </util:list>
+
+    <alias alias="payoneWebhookEventProcessor" name="defaultPayoneWebhookEventProcessor"/>
+    <bean id="defaultPayoneWebhookEventProcessor"
+          class="com.payone.pcp.webhook.service.impl.DefaultPayoneWebhookEventProcessor">
+        <property name="configurationService" ref="configurationService"/>
+        <property name="modelService" ref="modelService"/>
+        <property name="payoneWebhookTargetResolver" ref="payoneWebhookTargetResolver"/>
+        <property name="handlers" ref="payoneWebhookEventHandlers"/>
+    </bean>
+
+    <!-- The single entry point the controller calls. Owns the step order
+         (verify -> parse -> store -> process), which is the security
+         property - see the class comment before rewiring it. -->
+    <alias alias="payoneWebhookReceiverService" name="defaultPayoneWebhookReceiverService"/>
+    <bean id="defaultPayoneWebhookReceiverService"
+          class="com.payone.pcp.webhook.service.impl.DefaultPayoneWebhookReceiverService">
+        <property name="payoneWebhookSignatureService" ref="payoneWebhookSignatureService"/>
+        <property name="payoneWebhookPayloadParser" ref="payoneWebhookPayloadParser"/>
+        <property name="payoneWebhookEventService" ref="payoneWebhookEventService"/>
+        <property name="payoneWebhookEventProcessor" ref="payoneWebhookEventProcessor"/>
+        <property name="sessionService" ref="sessionService"/>
+        <property name="userService" ref="userService"/>
+        <property name="configurationService" ref="configurationService"/>
+    </bean>
+
+</beans>

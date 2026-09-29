@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+    Generated DTOs for the inbound PCP webhook envelope.
+
+    Deserialised straight off the raw request body by Jackson
+    (DefaultPayoneWebhookPayloadParser), field-name-matched against these
+    beans' generated getters/setters. Unknown JSON members are tolerated at the
+    shared ObjectMapper level (FAIL_ON_UNKNOWN_PROPERTIES disabled), so PCP can
+    add a field to the payload without this build failing to deserialise it.
+    Only the fields this extension actually acts on are modelled; the complete
+    payload is preserved verbatim on PayoneWebhookEvent.payload regardless.
+
+    Run `ant all` after editing this file to regenerate the DTO classes.
+-->
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="beans.xsd">
+
+	<!-- `amountOfMoney` (AmountOfMoney). `amount` is in MINOR units (PCP
+	     convention), matching PayoneCheckout.amount and the `amount` argument of
+	     PayoneTransactionService.createPaymentTransactionEntry. -->
+	<bean class="com.payone.pcp.webhook.dto.PayoneWebhookAmountOfMoneyDto">
+		<property name="amount" type="Long"/>
+		<property name="currencyCode" type="String"/>
+	</bean>
+
+	<!-- `references` (References). merchantReference is the SAP order code (or
+	     guid) this plugin sent - see PcpReferencesConverter. Carried for
+	     traceability in logs; resolution never trusts it over a PCP id. -->
+	<bean class="com.payone.pcp.webhook.dto.PayoneWebhookReferencesDto">
+		<property name="merchantReference" type="String"/>
+		<property name="merchantParameters" type="String"/>
+	</bean>
+
+	<!-- Shared shape of `paymentOutput` (PaymentOutput), `refundOutput`
+	     (RefundOutput) and `payoutOutput` (PayoutOutput). Only the members common
+	     to all three are modelled: the amount is the one this extension acts on,
+	     and it is the ONE authoritative source for how much a capture/refund/
+	     payout moved. The per-payment-method *SpecificOutput blocks (card, mobile,
+	     redirect, SEPA, financing) are not modelled - they describe the
+	     instrument, not the money movement, and nothing here acts on them.
+	     The raw payload is preserved verbatim on PayoneWebhookEvent.payload if a
+	     later phase needs them. -->
+	<bean class="com.payone.pcp.webhook.dto.PayoneWebhookOutputDto">
+		<property name="amountOfMoney" type="com.payone.pcp.webhook.dto.PayoneWebhookAmountOfMoneyDto"/>
+		<property name="references" type="com.payone.pcp.webhook.dto.PayoneWebhookReferencesDto"/>
+		<property name="paymentMethod" type="String"/>
+	</bean>
+
+	<!-- `statusOutput` (PaymentStatusOutput / RefundStatusOutput). Advisory
+	     flags; the lifecycle status this extension writes comes from the event
+	     TYPE, never from these - see PayoneCheckoutStatusWebhookHandler. Modelled
+	     so they can be logged and asserted against, not acted on. -->
+	<bean class="com.payone.pcp.webhook.dto.PayoneWebhookStatusOutputDto">
+		<property name="statusCategory" type="String"/>
+		<property name="isCancellable" type="Boolean"/>
+		<property name="isAuthorized" type="Boolean"/>
+		<property name="isRefundable" type="Boolean"/>
+	</bean>
+
+	<!-- The `payment` (PaymentResponse), `refund` (RefundPaymentResponse) and
+	     `payout` (PayoutResponse) envelope members share this shape.
+
+	     All THREE output members are declared on the one bean because the three
+	     members carry the same shape under three different JSON names, and
+	     exactly one of them is ever populated for a given envelope member
+	     (`payment` carries only paymentOutput, and so on). Splitting the bean in
+	     three would duplicate the id/status/statusOutput members and force the
+	     envelope to name three types for what PCP documents as one shape;
+	     PayoneWebhookPayloadReader.outputOf() picks whichever is present. -->
+	<bean class="com.payone.pcp.webhook.dto.PayoneWebhookStatusObjectDto">
+		<property name="id" type="String"/>
+		<property name="status" type="String"/>
+		<property name="statusCategory" type="String"/>
+		<property name="statusOutput" type="com.payone.pcp.webhook.dto.PayoneWebhookStatusOutputDto"/>
+		<property name="paymentOutput" type="com.payone.pcp.webhook.dto.PayoneWebhookOutputDto"/>
+		<property name="refundOutput" type="com.payone.pcp.webhook.dto.PayoneWebhookOutputDto"/>
+		<property name="payoutOutput" type="com.payone.pcp.webhook.dto.PayoneWebhookOutputDto"/>
+	</bean>
+
+	<!-- The `commerceCase` envelope member (CommerceCase). -->
+	<bean class="com.payone.pcp.webhook.dto.PayoneWebhookCommerceCaseDto">
+		<property name="id" type="String"/>
+		<property name="merchantReference" type="String"/>
+		<property name="merchantCustomerId" type="String"/>
+	</bean>
+
+	<!-- `checkout.statusOutput` (CheckoutStatusOutput) - PCP's own running
+	     aggregate for the checkout, in minor units. NOT applied to local state:
+	     Order.paymentStatus is computed from the local PaymentTransactionEntry
+	     rows (DefaultPayoneTransactionService), and mixing in a second,
+	     independently-maintained aggregate would give two sources of truth for
+	     "is it paid". Modelled so it can be logged and reconciled against. -->
+	<bean class="com.payone.pcp.webhook.dto.PayoneWebhookCheckoutStatusOutputDto">
+		<property name="paymentStatus" type="String"/>
+		<property name="isModifiable" type="Boolean"/>
+		<property name="openAmount" type="Long"/>
+		<property name="collectedAmount" type="Long"/>
+		<property name="cancelledAmount" type="Long"/>
+		<property name="refundedAmount" type="Long"/>
+		<property name="chargebackAmount" type="Long"/>
+	</bean>
+
+	<!-- The `checkout` envelope member (Checkout). -->
+	<bean class="com.payone.pcp.webhook.dto.PayoneWebhookCheckoutDto">
+		<property name="id" type="String"/>
+		<property name="merchantReference" type="String"/>
+		<property name="checkoutStatus" type="String"/>
+		<property name="statusOutput" type="com.payone.pcp.webhook.dto.PayoneWebhookCheckoutStatusOutputDto"/>
+	</bean>
+
+	<!-- One entry of `paymentExecution.events` / `paymentInformation.events`
+	     (PaymentEvent). This - not the envelope root - is where a payment
+	     execution's amount lives, so a partial capture or partial refund
+	     delivered on a payment_execution.* event is only readable from here. -->
+	<bean class="com.payone.pcp.webhook.dto.PayoneWebhookExecutionEventDto">
+		<property name="type" type="String"/>
+		<property name="paymentStatus" type="String"/>
+		<property name="amountOfMoney" type="com.payone.pcp.webhook.dto.PayoneWebhookAmountOfMoneyDto"/>
+		<property name="cancellationReason" type="String"/>
+		<property name="returnReason" type="String"/>
+	</bean>
+
+	<!-- Shared shape of `paymentExecution` (PaymentExecution) and
+	     `paymentInformation` (PaymentInformation). -->
+	<bean class="com.payone.pcp.webhook.dto.PayoneWebhookExecutionDto">
+		<property name="id" type="String"/>
+		<property name="paymentId" type="String"/>
+		<property name="merchantReference" type="String"/>
+		<property name="paymentChannel" type="String"/>
+		<property name="paymentProductId" type="Integer"/>
+		<property name="events" type="java.util.List&lt;com.payone.pcp.webhook.dto.PayoneWebhookExecutionEventDto>"/>
+	</bean>
+
+	<!-- Root of an inbound PCP webhook delivery ("Commerce Webhook API (1.11.0)",
+	     POST /webhooks). `created` is kept as the raw ISO8601 string rather than
+	     a Date - see DefaultPayoneWebhookEventService, which never parses it. -->
+	<bean class="com.payone.pcp.webhook.dto.PayoneWebhookEventDto">
+		<property name="apiVersion" type="String"/>
+		<property name="created" type="String"/>
+		<property name="id" type="String"/>
+		<property name="merchantId" type="String"/>
+		<property name="type" type="String"/>
+		<property name="payment" type="com.payone.pcp.webhook.dto.PayoneWebhookStatusObjectDto"/>
+		<property name="refund" type="com.payone.pcp.webhook.dto.PayoneWebhookStatusObjectDto"/>
+		<property name="payout" type="com.payone.pcp.webhook.dto.PayoneWebhookStatusObjectDto"/>
+		<property name="commerceCase" type="com.payone.pcp.webhook.dto.PayoneWebhookCommerceCaseDto"/>
+		<property name="checkout" type="com.payone.pcp.webhook.dto.PayoneWebhookCheckoutDto"/>
+		<property name="paymentExecution" type="com.payone.pcp.webhook.dto.PayoneWebhookExecutionDto"/>
+		<property name="paymentInformation" type="com.payone.pcp.webhook.dto.PayoneWebhookExecutionDto"/>
+	</bean>
+
+</beans>

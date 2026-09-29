@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Bean wiring for payonepcpcore: configuration service/DAO, PCP SDK client
+     factory, the service layer over SDK clients, converters and payment
+     strategies. -->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans
+           http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <!-- ================================================================
+         Configuration service beans
+         ================================================================ -->
+
+    <!-- Dynamic attribute handler for PayoneConfiguration secrets.
+         apiSecret is in-memory only; this handler prevents any
+         database persistence of secret values.
+         Bean id must follow the SAP Commerce dynamic-attribute convention:
+           <ItemType>_<qualifier>AttributeHandler
+         Hybris resolves the handler bean by that exact id (the qualifier-first
+         form fails with "cannot find spring bean [PayoneConfiguration_apiSecretAttributeHandler]"). -->
+    <bean id="PayoneConfiguration_apiSecretAttributeHandler"
+          class="com.payone.pcp.core.dynamic.InMemorySecretAttributeHandler">
+        <constructor-arg value="apiSecret"/>
+        <property name="hybrisConfigurationService" ref="configurationService"/>
+    </bean>
+
+    <!-- DAO for PayoneConfiguration lookup by merchantId -->
+    <alias alias="payoneConfigurationDao" name="defaultPayoneConfigurationDao"/>
+    <bean id="defaultPayoneConfigurationDao"
+          class="com.payone.pcp.core.dao.impl.PayoneConfigurationDaoImpl">
+        <property name="flexibleSearchService" ref="flexibleSearchService"/>
+    </bean>
+
+    <!-- Configuration service — resolves model + env secrets per BaseStore -->
+    <alias alias="payoneConfigurationService" name="defaultPayoneConfigurationService"/>
+    <bean id="defaultPayoneConfigurationService"
+          class="com.payone.pcp.core.service.impl.DefaultPayoneConfigurationService">
+        <property name="hybrisConfigurationService" ref="configurationService"/>
+        <property name="baseStoreService" ref="baseStoreService"/>
+        <property name="payoneConfigurationDao" ref="payoneConfigurationDao"/>
+    </bean>
+
+    <!-- PCP SDK client factory — builds CommunicatorConfiguration + API clients.
+         Timeouts come from project.properties so a slow upstream can be retuned
+         per CCv2 environment without a code change. -->
+    <alias alias="payonePcpClientFactory" name="defaultPayonePcpClientFactory"/>
+    <bean id="defaultPayonePcpClientFactory"
+          class="com.payone.pcp.core.service.impl.DefaultPayonePcpClientFactory">
+        <property name="connectTimeoutSeconds" value="${payone.pcp.http.connectTimeoutSeconds}"/>
+        <property name="readTimeoutSeconds" value="${payone.pcp.http.readTimeoutSeconds}"/>
+        <property name="writeTimeoutSeconds" value="${payone.pcp.http.writeTimeoutSeconds}"/>
+    </bean>
+
+    <!-- ================================================================
+         Thin service layer over PCP SDK clients
+         ================================================================ -->
+
+    <!-- CommerceCase service -->
+    <alias alias="payoneCommerceCaseService" name="defaultPayoneCommerceCaseService"/>
+    <bean id="defaultPayoneCommerceCaseService"
+          class="com.payone.pcp.core.service.impl.DefaultPayoneCommerceCaseService">
+        <property name="clientFactory" ref="payonePcpClientFactory"/>
+    </bean>
+
+    <!-- Checkout service -->
+    <alias alias="payoneCheckoutService" name="defaultPayoneCheckoutService"/>
+    <bean id="defaultPayoneCheckoutService"
+          class="com.payone.pcp.core.service.impl.DefaultPayoneCheckoutService">
+        <property name="clientFactory" ref="payonePcpClientFactory"/>
+    </bean>
+
+    <!-- Payment execution service (create, capture, cancel, refund, etc.) -->
+    <alias alias="payonePaymentExecutionService" name="defaultPayonePaymentExecutionService"/>
+    <bean id="defaultPayonePaymentExecutionService"
+          class="com.payone.pcp.core.service.impl.DefaultPayonePaymentExecutionService">
+        <property name="clientFactory" ref="payonePcpClientFactory"/>
+    </bean>
+
+    <!-- Authentication token service (JWT for hosted tokenizer) -->
+    <alias alias="payoneAuthenticationService" name="defaultPayoneAuthenticationService"/>
+    <bean id="defaultPayoneAuthenticationService"
+          class="com.payone.pcp.core.service.impl.DefaultPayoneAuthenticationService">
+        <property name="clientFactory" ref="payonePcpClientFactory"/>
+    </bean>
+
+    <!-- Payment information retrieval service -->
+    <alias alias="payonePaymentInformationService" name="defaultPayonePaymentInformationService"/>
+    <bean id="defaultPayonePaymentInformationService"
+          class="com.payone.pcp.core.service.impl.DefaultPayonePaymentInformationService">
+        <property name="clientFactory" ref="payonePcpClientFactory"/>
+    </bean>
+
+    <!-- ================================================================
+         PaymentTransaction management
+         ================================================================ -->
+
+    <!-- Transaction service — creates/updates PaymentTransaction(Entry) + status mapping -->
+    <alias alias="payoneTransactionService" name="defaultPayoneTransactionService"/>
+    <bean id="defaultPayoneTransactionService"
+          class="com.payone.pcp.core.service.impl.DefaultPayoneTransactionService">
+        <property name="modelService" ref="modelService"/>
+    </bean>
+
+    <!-- ================================================================
+         Converter beans (constructor injection)
+         ================================================================ -->
+
+    <!-- Leaf converters (no dependencies) -->
+
+    <alias alias="pcpAddressConverter" name="defaultPcpAddressConverter"/>
+    <bean id="defaultPcpAddressConverter"
+          class="com.payone.pcp.core.converters.PcpAddressConverter"/>
+
+    <alias alias="pcpAmountOfMoneyConverter" name="defaultPcpAmountOfMoneyConverter"/>
+    <bean id="defaultPcpAmountOfMoneyConverter"
+          class="com.payone.pcp.core.converters.PcpAmountOfMoneyConverter"/>
+
+    <alias alias="pcpLineItemConverter" name="defaultPcpLineItemConverter"/>
+    <bean id="defaultPcpLineItemConverter"
+          class="com.payone.pcp.core.converters.PcpLineItemConverter"/>
+
+    <alias alias="pcpReferencesConverter" name="defaultPcpReferencesConverter"/>
+    <bean id="defaultPcpReferencesConverter"
+          class="com.payone.pcp.core.converters.PcpReferencesConverter"/>
+
+    <alias alias="pcpCancelPaymentRequestConverter" name="defaultPcpCancelPaymentRequestConverter"/>
+    <bean id="defaultPcpCancelPaymentRequestConverter"
+          class="com.payone.pcp.core.converters.PcpCancelPaymentRequestConverter"/>
+
+    <alias alias="pcpCapturePaymentRequestConverter" name="defaultPcpCapturePaymentRequestConverter"/>
+    <bean id="defaultPcpCapturePaymentRequestConverter"
+          class="com.payone.pcp.core.converters.PcpCapturePaymentRequestConverter"/>
+
+    <alias alias="pcpRefundPaymentRequestConverter" name="defaultPcpRefundPaymentRequestConverter"/>
+    <bean id="defaultPcpRefundPaymentRequestConverter"
+          class="com.payone.pcp.core.converters.PcpRefundPaymentRequestConverter"/>
+
+    <!-- Payment method input builders (no dependencies) -->
+
+    <alias alias="pcpCardPaymentMethodSpecificInputBuilder" name="defaultPcpCardPaymentMethodSpecificInputBuilder"/>
+    <bean id="defaultPcpCardPaymentMethodSpecificInputBuilder"
+          class="com.payone.pcp.core.converters.paymentmethod.PcpCardPaymentMethodSpecificInputBuilder"/>
+
+    <alias alias="pcpRedirectPaymentMethodSpecificInputBuilder" name="defaultPcpRedirectPaymentMethodSpecificInputBuilder"/>
+    <bean id="defaultPcpRedirectPaymentMethodSpecificInputBuilder"
+          class="com.payone.pcp.core.converters.paymentmethod.PcpRedirectPaymentMethodSpecificInputBuilder"/>
+
+    <alias alias="pcpSepaDirectDebitPaymentMethodSpecificInputBuilder" name="defaultPcpSepaDirectDebitPaymentMethodSpecificInputBuilder"/>
+    <bean id="defaultPcpSepaDirectDebitPaymentMethodSpecificInputBuilder"
+          class="com.payone.pcp.core.converters.paymentmethod.PcpSepaDirectDebitPaymentMethodSpecificInputBuilder"/>
+
+    <alias alias="pcpMobilePaymentMethodSpecificInputBuilder" name="defaultPcpMobilePaymentMethodSpecificInputBuilder"/>
+    <bean id="defaultPcpMobilePaymentMethodSpecificInputBuilder"
+          class="com.payone.pcp.core.converters.paymentmethod.PcpMobilePaymentMethodSpecificInputBuilder"/>
+
+    <alias alias="pcpFinancingPaymentMethodSpecificInputBuilder" name="defaultPcpFinancingPaymentMethodSpecificInputBuilder"/>
+    <bean id="defaultPcpFinancingPaymentMethodSpecificInputBuilder"
+          class="com.payone.pcp.core.converters.paymentmethod.PcpFinancingPaymentMethodSpecificInputBuilder"/>
+
+    <!-- Composite converters (injected dependencies) -->
+
+    <alias alias="pcpShoppingCartConverter" name="defaultPcpShoppingCartConverter"/>
+    <bean id="defaultPcpShoppingCartConverter"
+          class="com.payone.pcp.core.converters.PcpShoppingCartConverter">
+        <constructor-arg ref="pcpLineItemConverter"/>
+        <constructor-arg ref="pcpAmountOfMoneyConverter"/>
+    </bean>
+
+    <alias alias="pcpCustomerConverter" name="defaultPcpCustomerConverter"/>
+    <bean id="defaultPcpCustomerConverter"
+          class="com.payone.pcp.core.converters.PcpCustomerConverter">
+        <constructor-arg ref="pcpAddressConverter"/>
+    </bean>
+
+    <alias alias="createCommerceCaseRequestConverter" name="defaultCreateCommerceCaseRequestConverter"/>
+    <bean id="defaultCreateCommerceCaseRequestConverter"
+          class="com.payone.pcp.core.converters.CreateCommerceCaseRequestConverter">
+        <constructor-arg ref="pcpCustomerConverter"/>
+    </bean>
+
+    <alias alias="createCheckoutRequestConverter" name="defaultCreateCheckoutRequestConverter"/>
+    <bean id="defaultCreateCheckoutRequestConverter"
+          class="com.payone.pcp.core.converters.CreateCheckoutRequestConverter">
+        <constructor-arg ref="pcpAmountOfMoneyConverter"/>
+        <constructor-arg ref="pcpShoppingCartConverter"/>
+        <constructor-arg ref="pcpReferencesConverter"/>
+        <constructor-arg ref="pcpAddressConverter"/>
+    </bean>
+
+    <alias alias="paymentExecutionRequestConverter" name="defaultPaymentExecutionRequestConverter"/>
+    <bean id="defaultPaymentExecutionRequestConverter"
+          class="com.payone.pcp.core.converters.PaymentExecutionRequestConverter">
+        <constructor-arg ref="pcpAmountOfMoneyConverter"/>
+        <constructor-arg ref="pcpShoppingCartConverter"/>
+        <constructor-arg ref="pcpReferencesConverter"/>
+        <constructor-arg ref="pcpCardPaymentMethodSpecificInputBuilder"/>
+        <constructor-arg ref="pcpRedirectPaymentMethodSpecificInputBuilder"/>
+        <constructor-arg ref="pcpSepaDirectDebitPaymentMethodSpecificInputBuilder"/>
+        <constructor-arg ref="pcpMobilePaymentMethodSpecificInputBuilder"/>
+        <constructor-arg ref="pcpFinancingPaymentMethodSpecificInputBuilder"/>
+        <constructor-arg ref="paymentModeService"/>
+    </bean>
+
+    <!-- ================================================================
+         Payment-method strategy layer
+         ================================================================ -->
+
+    <!-- Shared abstract parent for all strategies: holds
+         the three common dependencies so the eleven concrete strategy beans no
+         longer repeat them. Abstract beans supply property values only; they are
+         never instantiated. Concretes set parent="abstractPaymentStrategy". -->
+    <bean id="abstractPaymentStrategy"
+          class="com.payone.pcp.core.strategy.impl.AbstractPaymentStrategy"
+          abstract="true">
+        <property name="payonePaymentExecutionService" ref="payonePaymentExecutionService"/>
+        <property name="payoneTransactionService" ref="payoneTransactionService"/>
+        <property name="paymentExecutionRequestConverter" ref="paymentExecutionRequestConverter"/>
+    </bean>
+
+    <!-- ================================================================
+         Payment-method strategies with SDK-input wiring points
+         ================================================================ -->
+
+    <!-- Apple Pay (product ID 302) — mobile wallet -->
+    <bean id="applePayStrategy"
+          parent="abstractPaymentStrategy"
+          class="com.payone.pcp.core.strategy.impl.ApplePayStrategy">
+        <property name="paymentProductId" value="302"/>
+    </bean>
+
+    <!-- Google Pay (product ID 320) — mobile wallet -->
+    <bean id="googlePayStrategy"
+          parent="abstractPaymentStrategy"
+          class="com.payone.pcp.core.strategy.impl.GooglePayStrategy">
+        <property name="paymentProductId" value="320"/>
+    </bean>
+
+    <!-- PayPal (product ID 840) — redirect -->
+    <bean id="payPalStrategy"
+          parent="abstractPaymentStrategy"
+          class="com.payone.pcp.core.strategy.impl.PayPalStrategy">
+        <property name="paymentProductId" value="840"/>
+    </bean>
+
+    <!-- SEPA Direct Debit (product ID 771) — domain-only -->
+    <bean id="sepaDirectDebitStrategy"
+          parent="abstractPaymentStrategy"
+          class="com.payone.pcp.core.strategy.impl.SepaDirectDebitStrategy">
+        <property name="paymentProductId" value="771"/>
+    </bean>
+
+    <!-- Visa (product ID 1) — card scheme -->
+    <bean id="visaCardStrategy"
+          parent="abstractPaymentStrategy"
+          class="com.payone.pcp.core.strategy.impl.VisaCardStrategy">
+        <property name="paymentProductId" value="1"/>
+    </bean>
+
+    <!-- Amex (product ID 2) — card scheme -->
+    <bean id="amexCardStrategy"
+          parent="abstractPaymentStrategy"
+          class="com.payone.pcp.core.strategy.impl.AmexCardStrategy">
+        <property name="paymentProductId" value="2"/>
+    </bean>
+
+    <!-- Mastercard (product ID 3) — card scheme -->
+    <bean id="mastercardCardStrategy"
+          parent="abstractPaymentStrategy"
+          class="com.payone.pcp.core.strategy.impl.MastercardCardStrategy">
+        <property name="paymentProductId" value="3"/>
+    </bean>
+
+    <!-- Diners (product ID 132) — card scheme -->
+    <bean id="dinersCardStrategy"
+          parent="abstractPaymentStrategy"
+          class="com.payone.pcp.core.strategy.impl.DinersCardStrategy">
+        <property name="paymentProductId" value="132"/>
+    </bean>
+
+    <!-- Secured Invoice (product ID 3390) — financing -->
+    <bean id="securedInvoiceStrategy"
+          parent="abstractPaymentStrategy"
+          class="com.payone.pcp.core.strategy.impl.SecuredInvoiceStrategy">
+        <property name="paymentProductId" value="3390"/>
+    </bean>
+
+    <!-- Secured Direct Debit (product ID 3392) — financing -->
+    <bean id="securedDirectDebitStrategy"
+          parent="abstractPaymentStrategy"
+          class="com.payone.pcp.core.strategy.impl.SecuredDirectDebitStrategy">
+        <property name="paymentProductId" value="3392"/>
+    </bean>
+
+    <!-- Wero (product ID 900) — redirect, DE/BE only, EUR only, Direct Sale only -->
+    <bean id="weroStrategy"
+          parent="abstractPaymentStrategy"
+          class="com.payone.pcp.core.strategy.impl.WeroStrategy">
+        <property name="paymentProductId" value="900"/>
+    </bean>
+
+    <!-- Strategy registry — auto-collects strategy beans -->
+    <alias alias="paymentStrategyRegistry" name="defaultPaymentStrategyRegistry"/>
+    <bean id="defaultPaymentStrategyRegistry"
+          class="com.payone.pcp.core.strategy.PaymentStrategyRegistry"
+          init-method="afterPropertiesSet">
+        <property name="strategyBeans">
+            <list>
+                <ref bean="applePayStrategy"/>
+                <ref bean="googlePayStrategy"/>
+                <ref bean="payPalStrategy"/>
+                <ref bean="sepaDirectDebitStrategy"/>
+                <ref bean="visaCardStrategy"/>
+                <ref bean="amexCardStrategy"/>
+                <ref bean="mastercardCardStrategy"/>
+                <ref bean="dinersCardStrategy"/>
+                <ref bean="securedInvoiceStrategy"/>
+                <ref bean="securedDirectDebitStrategy"/>
+                <ref bean="weroStrategy"/>
+            </list>
+        </property>
+    </bean>
+
+</beans>

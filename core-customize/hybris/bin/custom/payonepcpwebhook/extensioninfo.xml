@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    payonepcpwebhook extension metadata.
+    Inbound PCP webhook receiver. Kept as a separate web module from
+    payonepcpocc: it is an unauthenticated,
+    CSRF-exempt trust boundary reached by PAYONE, not by the storefront.
+    Verifies the HMAC signature in-house (the SDK ships none), dedups on the
+    persisted PayoneWebhookEvent.eventId, and maps PCP status onto
+    PaymentTransactionEntry to drive the order business process.
+-->
+<extensioninfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:noNamespaceSchemaLocation="extensioninfo.xsd">
+
+    <extension name="payonepcpwebhook"
+               classprefix="Payonepcpwebhook"
+               abstractclassprefix="Generated"
+               jaloLogicFree="true"
+               managername="PayonepcpwebhookManager"
+               managersuperclass="de.hybris.platform.jalo.extension.Extension"
+               version="1.0.0">
+
+        <!-- payonepcpcore supplies the signature-verification config and the
+             PCP-status -> PaymentTransactionEntry mapping. webservicescommons
+             supplies the REST/filter-chain infrastructure for the web module.
+             Note: no dependency on payonepcpfacades or payonepcpocc - the
+             webhook path must stay independent of the storefront API. -->
+        <requires-extension name="payonepcpcore"/>
+        <requires-extension name="webservicescommons"/>
+
+        <!-- Core module - generates DTO classes from beans.xml -->
+        <coremodule generated="true"
+                    manager="com.payone.pcp.webhook.jalo.PayonepcpwebhookManager"
+                    packageroot="com.payone.pcp.webhook"/>
+
+        <!-- Own webapp: /payonepcpwebhook is the URL PAYONE is configured to
+             call. Runs in the storefront aspect. -->
+        <webmodule jspcompile="false" webroot="/payonepcpwebhook"/>
+
+    </extension>
+</extensioninfo>

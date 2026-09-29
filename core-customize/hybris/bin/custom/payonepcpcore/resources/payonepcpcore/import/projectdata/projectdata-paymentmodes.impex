@@ -1,0 +1,21 @@
+# Idempotent INSERT_UPDATE of PCP-supported payment modes.
+# code is the PAYONE product ID. paymentFamily is a payonepcpcore attribute
+# that drives per-family SDK input dispatch.
+#
+# A product ID with no row here (cash / gift card / loyalty, or the
+# undocumented 3391) resolves to no PaymentMethodSpecificInput:
+# PaymentExecutionRequestConverter.familyForProductId() treats a missing
+# PaymentMode as "no family" rather than throwing.
+
+INSERT_UPDATE PaymentMode; code[unique=true]; name[lang=en]; description[lang=en]; active; paymentinfotype(code); paymentFamily(code)
+; 1               ; Visa              ; Visa                        ; true; PayonePaymentInfo; CARD
+; 2               ; American Express  ; American Express            ; true; PayonePaymentInfo; CARD
+; 3               ; Mastercard        ; Mastercard                  ; true; PayonePaymentInfo; CARD
+; 132             ; Diners Club       ; Diners Club                 ; true; PayonePaymentInfo; CARD
+; 302             ; Apple Pay         ; Apple Pay                   ; true; PayonePaymentInfo; MOBILE
+; 320             ; Google Pay        ; Google Pay                  ; true; PayonePaymentInfo; MOBILE
+; 840             ; PayPal            ; PayPal                      ; true; PayonePaymentInfo; REDIRECT
+; 771             ; SEPA Direct Debit ; SEPA Direct Debit           ; true; PayonePaymentInfo; SEPA
+; 3390            ; PAYONE Secured Invoice       ; PAYONE Secured Invoice       ; true; PayonePaymentInfo; FINANCING
+; 3392            ; PAYONE Secured Direct Debit ; PAYONE Secured Direct Debit ; true; PayonePaymentInfo; FINANCING
+; 900             ; Wero              ; Wero                        ; true; PayonePaymentInfo; REDIRECT

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+    WsDTOs for the PCP OCC contract: commerce-case, authentication-token,
+    payment execution/authorize/redirect-callback/orders, plus the shared
+    error response.
+-->
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="beans.xsd">
+
+    <bean class="com.payone.pcp.occ.dto.CommerceCaseResultWsDTO">
+        <description>
+            Response of POST .../payone/commerce-case.
+        </description>
+        <property name="commerceCaseId"          type="String"/>
+        <property name="checkoutId"              type="String"/>
+        <property name="amount"                  type="Long"/>
+        <property name="currencyIsoCode"         type="String"/>
+        <property name="allowedPaymentActions"   type="java.util.List&lt;java.lang.String&gt;"/>
+    </bean>
+
+    <bean class="com.payone.pcp.occ.dto.AuthenticationTokenResultWsDTO">
+        <description>
+            Response of POST .../payone/authentication-token.
+        </description>
+        <property name="token"                   type="String"/>
+        <property name="id"                      type="String"/>
+        <property name="expirationDate"          type="String"/>
+    </bean>
+
+    <bean class="com.payone.pcp.occ.dto.PaymentRequestWsDTO">
+        <description>
+            Request body of POST .../payone/placeorder (deprecated direct-SDK
+            path) — CARD or SEPA.
+        </description>
+        <property name="commerceCaseId"          type="String"/>
+        <property name="checkoutId"              type="String"/>
+        <property name="paymentMethod"           type="String"/>
+        <property name="paymentProcessingToken"  type="String"/>
+        <property name="paymentProductId"        type="Integer"/>
+        <property name="iban"                    type="String"/>
+        <property name="accountHolder"           type="String"/>
+        <property name="creditorId"              type="String"/>
+        <property name="mandateReference"        type="String"/>
+        <property name="dateOfSignature"         type="String"/>
+    </bean>
+
+    <bean class="com.payone.pcp.occ.dto.PaymentResultWsDTO">
+        <description>
+            Response of POST .../payone/placeorder (deprecated direct-SDK
+            path).
+        </description>
+        <property name="orderCode"               type="String"/>
+        <property name="paymentStatus"           type="String"/>
+        <property name="redirectUrl"             type="String"/>
+    </bean>
+
+    <bean class="com.payone.pcp.occ.dto.ErrorResultWsDTO">
+        <description>
+            Shared error response body for every PCP OCC endpoint.
+        </description>
+        <property name="message"                 type="String"/>
+    </bean>
+
+    <!-- Strategy-routed path: alternative to placeorder above, dispatches via
+         PaymentStrategyRegistry and splits into authorize/place-order steps. -->
+
+    <bean class="com.payone.pcp.occ.dto.PaymentDetailsWsDTO">
+        <description>
+            Request body of POST .../payone/payments/authorize — dispatch is
+            by the paymentProductId query parameter, not a paymentMethod
+            string.
+        </description>
+        <property name="paymentProcessingToken"  type="String"/>
+        <property name="iban"                    type="String"/>
+        <property name="accountHolder"           type="String"/>
+        <property name="creditorId"              type="String"/>
+        <property name="mandateReference"        type="String"/>
+        <property name="dateOfSignature"         type="String"/>
+    </bean>
+
+    <bean class="com.payone.pcp.occ.dto.PayoneAuthorizationResultWsDTO">
+        <description>
+            Response of POST .../payone/payments/authorize and
+            .../payone/payments/redirect-callback — tells the frontend
+            "redirect now", "payment done", or "wait". 'redirect' generates
+            isRedirect() per Java Beans convention.
+        </description>
+        <property name="redirect"                type="boolean"/>
+        <property name="redirectUrl"             type="String"/>
+        <property name="paymentId"               type="String"/>
+        <property name="status"                  type="String"/>
+    </bean>
+
+    <bean class="com.payone.pcp.occ.dto.PayoneCheckoutResultWsDTO">
+        <description>
+            Response of POST .../payone/orders (strategy-routed path).
+        </description>
+        <property name="commerceCaseId"          type="String"/>
+        <property name="checkoutId"              type="String"/>
+        <property name="paymentExecutionId"      type="String"/>
+        <property name="paymentId"               type="String"/>
+        <property name="status"                  type="String"/>
+    </bean>
+
+</beans>

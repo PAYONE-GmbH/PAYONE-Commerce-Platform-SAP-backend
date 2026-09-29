@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Core domain, configuration, SDK integration and payment strategies for the
+    PAYONE Commerce Platform (PCP) plugin. Clean-core: extends OOTB types
+    additively, no core overrides.
+-->
+<extensioninfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:noNamespaceSchemaLocation="extensioninfo.xsd">
+
+    <extension name="payonepcpcore"
+               classprefix="Payonepcpcore"
+               abstractclassprefix="Generated"
+               jaloLogicFree="true"
+               managername="PayonepcpcoreManager"
+               managersuperclass="de.hybris.platform.jalo.extension.Extension"
+               version="1.0.0"
+               usemaven="true">
+
+        <!-- payment supplies PaymentInfo/PaymentTransaction; commerceservices supplies
+             BaseStore/Order/Customer. The PCP SDK (io.github.payone-gmbh:pcp-serversdk-java)
+             arrives via Maven, see external-dependencies.xml; platform/project.properties
+             sets -DexcludeTransitive=true, so its transitives are hand-declared there. -->
+        <requires-extension name="commerceservices"/>
+        <requires-extension name="payment"/>
+
+        <coremodule generated="true"
+                    manager="com.payone.pcp.core.jalo.PayonepcpcoreManager"
+                    packageroot="com.payone.pcp.core"/>
+
+    </extension>
+</extensioninfo>

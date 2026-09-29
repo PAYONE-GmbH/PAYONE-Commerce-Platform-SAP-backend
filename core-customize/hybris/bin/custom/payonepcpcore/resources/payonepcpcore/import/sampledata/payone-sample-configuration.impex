@@ -1,0 +1,37 @@
+# Sample PayoneConfiguration for a dev/demo instance.
+# Non-secret values only: merchantId, endpoint host, key identifiers. The
+# matching apiSecret is resolved from the CCv2 secret store at runtime by
+# the config service, never stored here, in items.xml, or in local.properties.
+#
+# Idempotent: keyed on merchantId[unique=true] (PayoneConfiguration has no
+# model-level unique attr, so the impex header drives the lookup) - repeated
+# updatesystem runs update the same row instead of duplicating it.
+
+INSERT_UPDATE PayoneConfiguration; merchantId[unique = true]; apiEndpointHost                         ; apiKeyId          ; defaultAuthorizationMode(code); captureDelayHours; askConsumerConsent; sessionTimeoutSeconds; active
+                                 ; SAMPLE_PCP_MERCHANT      ; https://api.preprod.commerce.payone.com ; SAMPLE_API_KEY_ID ; SALE                          ; 0                ; true              ; 600                  ; true
+
+# Optional: returnUrl for redirect / financing methods. Use your store's
+# stable HTTPS callback URL; no example URL is supplied.
+# INSERT_UPDATE PayoneConfiguration ; merchantId[unique = true] ; returnUrl
+#                                   ; SAMPLE_PCP_MERCHANT       ; <STORE_HTTPS_CALLBACK_URL>
+
+# Optional: attach the configuration + checkout type to a BaseStore. Set the
+# store uid(s) that exist in your instance. Left commented so this sample
+# imports cleanly on a platform with no sample stores.
+#
+# INSERT_UPDATE BaseStore ; uid[unique = true] ; payoneConfiguration(merchantId) ; payoneCheckoutType(code)
+#                         ; electronics        ; SAMPLE_PCP_MERCHANT             ; HOSTED_TOKENIZATION
+#                         ; powertools         ; SAMPLE_PCP_MERCHANT             ; HOSTED_TOKENIZATION
+#
+# payoneConfiguration is a relation, not a copied value - the same
+# PayoneConfiguration row can be shared across multiple stores.
+
+# Optional: enable a subset of payment modes for this sample configuration.
+# paymentModes resolves by code[unique=true], seeded by
+# projectdata-paymentmodes.impex (imported before this sample). Left
+# commented: with none configured, PaymentStrategyRegistry applies no
+# per-store filter, which is the safe default and avoids narrowing a live
+# store's allowed payment methods via this non-production file.
+#
+# INSERT_UPDATE PayoneConfiguration ; merchantId[unique = true] ; paymentModes(code)
+#                                   ; SAMPLE_PCP_MERCHANT       ; 1,2,3,132,302,320,840,771,3390,3392

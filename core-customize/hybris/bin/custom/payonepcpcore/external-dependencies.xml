@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    external-dependencies.xml — payonepcpcore Maven dependencies.
+
+    Declares the PCP ServerSDK Java library AND, flattened, every one of its
+    transitive dependencies. They are NOT pulled in automatically: the platform
+    runs dependency:copy-dependencies with -DexcludeTransitive=true (see
+    platform/project.properties, maven.download.options), so anything not listed
+    below is missing from lib/ at runtime.
+
+    After adding/updating dependencies, run:
+        ant updateMavenDependencies -Dextname=payonepcpcore
+
+    This resolves the POM and downloads jars into the extension's lib/ folder.
+
+    ===================================================================
+    The transitive block below is GENERATED, not remembered. Bumping the
+    SDK version means regenerating it:
+
+        scripts/check-external-dependencies.sh payonepcpcore write
+
+    which resolves the real tree with `mvn dependency:tree` and rewrites the
+    block. Called without the write argument it only diffs and exits non-zero;
+    that is what the verify-dependencies CI job runs, so an SDK bump that
+    silently truncates the classpath fails the build instead of shipping.
+    (XML comments cannot contain a double hyphen, hence no leading dashes on
+    that argument here — the script accepts either spelling.)
+
+    Generated for : io.github.payone-gmbh:pcp-serversdk-java 1.13.0
+    Generated on  : 2026-08-07
+    Resolver      : Apache Maven 3.9.16
+
+    NOTE: the SDK POM carries a `published-with-gradle-metadata` marker. The POM
+    is authoritative for this ant/Maven build; re-check the versions here if the
+    plugin is ever consumed via Gradle, which prefers the richer module metadata.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>de.hybris.platform</groupId>
+    <artifactId>payonepcpcore</artifactId>
+    <version>2211-jdk21.15</version>
+    <packaging>jar</packaging>
+
+    <dependencies>
+        <!-- PCP Server SDK — builds and signs requests for the PAYONE Commerce
+             Platform API. Published on Maven Central. -->
+        <dependency>
+            <groupId>io.github.payone-gmbh</groupId>
+            <artifactId>pcp-serversdk-java</artifactId>
+            <version>1.13.0</version>
+        </dependency>
+
+        <!-- BEGIN GENERATED TRANSITIVES — do not hand-edit, see header.
+             Order and versions mirror `mvn dependency:tree` exactly, including
+             the mixed Kotlin versions: okhttp pulls kotlin-stdlib-jdk8 1.8.21
+             while okio-jvm pulls kotlin-stdlib-common 1.9.10, and Maven's
+             nearest-wins keeps both. Aligning them by hand would diverge from
+             what the resolver actually produces. -->
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.17.2</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>2.17.2</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>4.12.0</version>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- Reached via kotlin-stdlib. CLASS-retention only, so its absence was
+             harmless — but it was absent, which is the point: nothing detected it. -->
+
+        <dependency>
+            <groupId>com.squareup.okio</groupId>
+            <artifactId>okio-jvm</artifactId>
+            <version>3.6.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib</artifactId>
+            <version>1.9.10</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>13.0</version>
+        </dependency>
+        <!-- END GENERATED TRANSITIVES -->
+    </dependencies>
+</project>

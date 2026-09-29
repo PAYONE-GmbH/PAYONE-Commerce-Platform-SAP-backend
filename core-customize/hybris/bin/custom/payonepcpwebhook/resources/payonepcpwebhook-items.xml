@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+    PayoneWebhookEvent, the dedup record for inbound PCP webhook deliveries,
+    is owned by this extension. It references PayoneCommerceCase, owned by
+    payonepcpcore.
+
+    Typecodes for all payonepcp* types come from the range reserved
+    (15110-15139) - see payonepcpcore/README.md. Any type added here later
+    must take the next free code from that range.
+-->
+<items xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="items.xsd">
+
+    <itemtypes>
+
+        <!-- PayoneWebhookEvent: adds eventId (idempotency dedup), merchantId,
+             and links to PayoneCommerceCase. -->
+        <itemtype code="PayoneWebhookEvent" extends="GenericItem"
+                  autocreate="true" generate="true">
+            <description>Persisted inbound PCP webhook event.</description>
+            <deployment table="payonePcpWebhookEvent" typecode="15116"/>
+            <attributes>
+                <attribute qualifier="eventId" type="java.lang.String">
+                    <description>PCP event id — unique key for idempotent processing / dedup.</description>
+                    <modifiers read="true" write="true" search="true" unique="true" optional="false" initial="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="eventType" type="java.lang.String">
+                    <description>PCP event type (raw).</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="merchantId" type="java.lang.String">
+                    <description>[PCP] merchant id carried on the webhook envelope.</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="payload" type="java.lang.String">
+                    <description>Raw webhook payload — exactly the bytes the HMAC signature
+                        was verified over. Mandatory with NO default: an event with no body
+                        must fail fast at persist time rather than be stored as "".</description>
+                    <modifiers read="true" write="true" optional="false" initial="true"/>
+                    <persistence type="property">
+                        <columntype database="oracle">
+                            <value>clob</value>
+                        </columntype>
+                        <columntype database="sap">
+                            <value>NCLOB</value>
+                        </columntype>
+                        <columntype>
+                            <value>HYBRIS.LONG_STRING</value>
+                        </columntype>
+                    </persistence>
+                </attribute>
+                <attribute qualifier="processed" type="java.lang.Boolean">
+                    <description>Whether the event has been successfully processed.</description>
+                    <modifiers read="true" write="true" optional="false"/>
+                    <defaultvalue>Boolean.FALSE</defaultvalue>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="attempts" type="java.lang.Integer">
+                    <description>Processing attempt count.</description>
+                    <modifiers read="true" write="true" optional="false"/>
+                    <defaultvalue>Integer.valueOf(0)</defaultvalue>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="receivedTime" type="java.util.Date">
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="processedTime" type="java.util.Date">
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="commerceCase" type="PayoneCommerceCase">
+                    <description>Commerce case this event relates to (resolved during processing).</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="payoneCheckout" type="PayoneCheckout">
+                    <description>Payone checkout this event relates to (resolved during processing).</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+            </attributes>
+            <indexes>
+                <index name="payoneWebhookEventIdIdx" unique="true">
+                    <key attribute="eventId"/>
+                </index>
+            </indexes>
+        </itemtype>
+
+    </itemtypes>
+
+</items>

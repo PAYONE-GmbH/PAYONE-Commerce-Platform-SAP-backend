@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Capture of the remaining open amount from the PayoneCheckout editor. -->
+<action-definition id="com.payone.pcp.backoffice.actions.payonecheckoutcaptureaction"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="http://www.hybris.com/schema/cockpitng/action-definition.xsd">
+
+	<name>PAYONE Capture</name>
+	<description>Triggers a full-amount PCP Capture for the order linked to the selected checkout</description>
+	<author>PAYONE</author>
+	<version>1.0</version>
+
+	<actionClassName>com.payone.pcp.backoffice.actions.PayoneCheckoutCaptureAction</actionClassName>
+
+	<inputType>com.payone.pcp.core.model.PayoneCheckoutModel</inputType>
+	<outputType>java.lang.Object</outputType>
+
+	<iconUri>icons/icon_action_capture.svg</iconUri>
+
+</action-definition>

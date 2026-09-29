@@ -1,0 +1,747 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+    PCP domain model. Names/enums are SDK-accurate against pcp-serversdk-java
+    1.56.0; attributes/enums with an SDK mapping are marked [PCP] with the
+    SDK class they map to.
+
+    Additive OOTB extensions only, no OOTB mutation. Secrets NEVER go here -
+    apiSecret is resolved from the CCv2 secret store at runtime. PaymentExecution
+    is the live path; recurring/SEPA are domain-only skeleton. Typecodes are
+    fresh, not reused from legacy Worldline (15003/15006/15007/15008).
+
+    Typecode range reserved for payonepcp*: 15110-15139 (see extension README).
+    Used here: 15110, 15112-15115. 15111 is an intentional gap, held for
+    PayonePaymentInfo, which extends OOTB PaymentInfo (single-table
+    inheritance) and so has no deployment of its own.
+
+    PayoneWebhookEvent now lives in payonepcpwebhook-items.xml, not here; its
+    typecode was reassigned from 15117 to 15116 at that time.
+
+    Payment status is the dedicated enum PayonePaymentStatus below, not an
+    extension of OOTB PaymentStatus (core-items.xml: NOTPAID/PARTPAID/PAID,
+    order-level "is it paid"). PCP StatusValue is a 26-value transaction
+    lifecycle on a different axis; a dedicated enum keeps clean-core and lets
+    raw PCP names map 1:1 from webhook payloads. Mapping to OOTB
+    TransactionStatus (ACCEPTED/REJECTED/REVIEW/ERROR) + Order.paymentStatus
+    stays in code.
+-->
+<items xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="items.xsd">
+
+    <enumtypes>
+        <!-- 1. Checkout mode selected per store / payment info -->
+        <enumtype code="PayoneCheckoutTypesEnum" autocreate="true" generate="true" dynamic="false">
+            <description>PCP checkout mode: hosted checkout page vs. client-side hosted tokenization.</description>
+            <value code="HOSTED_CHECKOUT"/>
+            <value code="HOSTED_TOKENIZATION"/>
+        </enumtype>
+
+        <!-- 2. Authorization mode for PaymentExecution (PaymentExecution path only).
+             [PCP] CardPaymentMethodSpecificInput.authorizationMode has exactly SALE and
+             PRE_AUTHORIZATION. FINAL_AUTHORIZATION is a Worldline-Direct value and does
+             NOT exist in PCP. -->
+        <enumtype code="PayoneAuthorizationModeEnum" autocreate="true" generate="true" dynamic="false">
+            <description>[PCP] authorization mode applied to a PaymentExecution.</description>
+            <value code="PRE_AUTHORIZATION"/>
+            <value code="SALE"/>
+        </enumtype>
+
+        <!-- 3. Recurring mode (recurring = domain-only skeleton, out of scope as a live
+             feature). Values aligned to PCP card-on-file semantics: which
+             request family a stored token drives. -->
+        <enumtype code="PayoneRecurringModeEnum" autocreate="true" generate="true" dynamic="false">
+            <description>Recurring pattern for a stored PCP token (domain-only skeleton).</description>
+            <value code="NONE"/>
+            <value code="SCHEDULED_RECURRING"/>
+            <value code="UNSCHEDULED_COF"/>
+        </enumtype>
+
+        <!-- 4. Recurring schedule frequency (domain-only skeleton).
+             [PCP] CardOnFileRecurringFrequencyEnum casing. -->
+        <enumtype code="PayoneRecurringFrequencyEnum" autocreate="true" generate="true" dynamic="false">
+            <description>[PCP] cardOnFileRecurringFrequency schedule (domain-only).</description>
+            <value code="Daily"/>
+            <value code="Weekly"/>
+            <value code="Monthly"/>
+            <value code="Quarterly"/>
+            <value code="Yearly"/>
+        </enumtype>
+
+        <!-- 5. Recurring token / mandate lifecycle status -->
+        <enumtype code="PayoneRecurringPaymentStatus" autocreate="true" generate="true" dynamic="false">
+            <description>Lifecycle status of a recurring token or SEPA mandate.</description>
+            <value code="ACTIVE"/>
+            <value code="BLOCKED"/>
+            <value code="REVOKED"/>
+            <value code="UNKNOWN"/>
+        </enumtype>
+
+        <!-- 6. SEPA mandate recurrence type (SEPA = skeleton only).
+             [PCP] MandateRecurrenceType -> UNIQUE | RECURRING. -->
+        <enumtype code="PayoneMandateRecurrenceType" autocreate="true" generate="true" dynamic="false">
+            <description>[PCP] SEPA mandate recurrence: one-off vs. recurrent.</description>
+            <value code="UNIQUE"/>
+            <value code="RECURRING"/>
+        </enumtype>
+
+        <!-- 7. Card-on-file request enums (domain-only skeleton; drive payment-method
+             strategy request wiring). [PCP] card-on-file / recurring indicators. -->
+        <enumtype code="PayoneRecurringSequenceEnum" autocreate="true" generate="true" dynamic="false">
+            <description>[PCP] CardRecurrenceDetails.recurringPaymentSequenceIndicator.</description>
+            <value code="first"/>
+            <value code="recurring"/>
+        </enumtype>
+        <enumtype code="PayoneUcofSequenceEnum" autocreate="true" generate="true" dynamic="false">
+            <description>[PCP] CardPaymentMethodSpecificInput.unscheduledCardOnFileSequenceIndicator.</description>
+            <value code="first"/>
+            <value code="subsequent"/>
+        </enumtype>
+        <enumtype code="PayoneUcofRequestorEnum" autocreate="true" generate="true" dynamic="false">
+            <description>[PCP] CardPaymentMethodSpecificInput.unscheduledCardOnFileRequestor.</description>
+            <value code="cardholderInitiated"/>
+            <value code="merchantInitiated"/>
+        </enumtype>
+
+        <!-- 8. Payment method family — which per-family SDK input structure a
+             product uses. Populated on OOTB PaymentMode rows via ImpEx; used
+             by the converter to dispatch to the correct builder. -->
+        <enumtype code="PaymentFamily" autocreate="true" generate="true" dynamic="false">
+            <description>PCP payment method family: which per-family SDK input structure a product uses.</description>
+            <value code="CARD"/>
+            <value code="MOBILE"/>
+            <value code="REDIRECT"/>
+            <value code="SEPA"/>
+            <value code="FINANCING"/>
+        </enumtype>
+
+        <!-- 9. PCP payment/checkout lifecycle status ([PCP] StatusValue).
+             Dedicated enum, NOT an extension of OOTB PaymentStatus (which is the
+             order-level NOTPAID/PARTPAID/PAID axis). Raw PCP names => direct 1:1
+             map from webhook/status-read payloads. dynamic="true": status is
+             webhook-driven, so a not-yet-modelled value PAYONE adds later is
+             created at runtime rather than failing import; mapping code
+             default-cases unknown -> REVIEW. Mapping to OOTB TransactionStatus /
+             Order.paymentStatus lives in code. -->
+        <enumtype code="PayonePaymentStatus" autocreate="true" generate="true" dynamic="true">
+            <description>[PCP] StatusValue - payment/checkout lifecycle status from PAYONE (webhooks + status reads).</description>
+            <value code="CREATED"/>
+            <value code="CANCELLED"/>
+            <value code="REJECTED"/>
+            <value code="REJECTED_CAPTURE"/>
+            <value code="REJECTED_PAUSE"/>
+            <value code="REJECTED_UPDATE"/>
+            <value code="REDIRECTED"/>
+            <value code="PENDING_PAYMENT"/>
+            <value code="PENDING_COMPLETION"/>
+            <value code="PENDING_CAPTURE"/>
+            <value code="AUTHORIZATION_REQUESTED"/>
+            <value code="CAPTURE_REQUESTED"/>
+            <value code="CAPTURED"/>
+            <value code="REVERSED"/>
+            <value code="REFUND_REQUESTED"/>
+            <value code="REFUNDED"/>
+            <value code="REJECTED_REFUND"/>
+            <value code="CANCELLATION_REQUESTED"/>
+            <value code="PAUSED"/>
+            <value code="CHARGEBACKED"/>
+            <value code="CHARGEBACK_REVERSED"/>
+            <value code="ACCOUNT_CREDITED"/>
+            <value code="ACCOUNT_DEBITED"/>
+            <value code="PAYOUT_REQUESTED"/>
+            <value code="REJECTED_CREDIT"/>
+            <value code="UPDATED"/>
+        </enumtype>
+    </enumtypes>
+
+    <relations>
+        <!-- A commerce case holds one or more checkouts; checkouts are part-of the case. -->
+        <relation code="PayoneCommerceCase2Checkout" localized="false">
+            <sourceElement type="PayoneCommerceCase" qualifier="commerceCase" cardinality="one">
+                <modifiers optional="true"/>
+            </sourceElement>
+            <targetElement type="PayoneCheckout" qualifier="checkouts" cardinality="many"
+                           collectiontype="list">
+                <modifiers partof="true"/>
+            </targetElement>
+        </relation>
+    </relations>
+
+    <itemtypes>
+
+        <!-- PayoneConfiguration: per-store PCP config. apiSecret is declared as an
+             attribute but never filled via Backoffice/impex - DefaultPayoneConfigurationService
+             resolves it from CCv2 env/secret store at runtime. No encrypted secret columns here. -->
+        <itemtype code="PayoneConfiguration" extends="GenericItem"
+                  autocreate="true" generate="true">
+            <description>Per-store PAYONE Commerce Platform configuration (secrets resolved from env at runtime).</description>
+            <deployment table="payonePcpConfiguration" typecode="15110"/>
+            <attributes>
+                <attribute qualifier="merchantId" type="java.lang.String">
+                    <description>PCP merchant identifier (non-secret). Natural key - backs the
+                        sample impex merchantId[unique=true] lookup.
+                        Charset constraint: ASCII letters, digits, underscore,
+                        hyphen only. Max 128 characters. Validated at config-resolve time by
+                        PayoneConfigurationValidator.</description>
+                    <modifiers read="true" write="true" optional="false" unique="true" initial="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="apiEndpointHost" type="java.lang.String">
+                    <description>[PCP] CommunicatorConfiguration host (e.g. api.preprod.commerce.payone.com).
+                        Non-secret. Must be a valid URL (with or without https:// scheme).
+                        Min 10 characters. Validated at config-resolve time by
+                        PayoneConfigurationValidator.</description>
+                    <modifiers read="true" write="true" optional="false" initial="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="apiKeyId" type="java.lang.String">
+                    <description>PCP API key identifier - non-secret half of the API credential;
+                        the matching apiSecret is resolved from env at runtime.</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="apiSecret" type="java.lang.String">
+                    <description>PCP API secret - resolved from CCv2 environment / secret store at runtime.
+                        NEVER set via Backoffice or impex. Populated at runtime by
+                        DefaultPayoneConfigurationService from CCv2 configuration properties.
+                        Required for all API calls. Dynamic: never persisted to the database.</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="dynamic"/>
+                </attribute>
+                <attribute qualifier="defaultAuthorizationMode" type="PayoneAuthorizationModeEnum">
+                    <description>Default authorization mode for PaymentExecution.</description>
+                    <modifiers read="true" write="true" optional="false"/>
+                    <persistence type="property"/>
+                    <defaultvalue>em().getEnumerationValue("PayoneAuthorizationModeEnum","SALE")</defaultvalue>
+                </attribute>
+                <!-- [PCP] AllowedPaymentActions family for this store. -->
+                <attribute qualifier="allowedPaymentAction" type="java.lang.String">
+                    <description>[PCP] AllowedPaymentActions family: PAYMENT_EXECUTION (v1)
+                        or ORDER_MANAGEMENT.</description>
+                    <modifiers read="true" write="true" optional="false"/>
+                    <persistence type="property"/>
+                    <defaultvalue>"PAYMENT_EXECUTION"</defaultvalue>
+                </attribute>
+                <!-- Payment methods enabled for the owning store.
+                     Collection of OOTB PaymentMode items so a store can enable multiple
+                     methods; resolved to PCP product IDs by DefaultPayoneConfigurationService
+                     for the strategy-registry per-store filter. -->
+                <attribute qualifier="paymentModes" type="PaymentModeCollection">
+                    <description>Payment methods enabled for this store's PCP configuration.</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="captureDelayHours" type="java.lang.Integer">
+                    <description>Delay before automatic capture, in hours (0 = immediate).</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                    <defaultvalue>Integer.valueOf(0)</defaultvalue>
+                </attribute>
+                <attribute qualifier="askConsumerConsent" type="java.lang.Boolean">
+                    <description>Ask the consumer for consent to store the card/token.</description>
+                    <modifiers read="true" write="true" optional="false"/>
+                    <persistence type="property"/>
+                    <defaultvalue>Boolean.TRUE</defaultvalue>
+                </attribute>
+                <!-- Whether the first recurring payment is immediate or scheduled
+                     (domain-only skeleton). -->
+                <attribute qualifier="firstRecurringPayment" type="java.lang.Boolean">
+                    <description>First recurring payment immediate vs. scheduled (skeleton).</description>
+                    <modifiers read="true" write="true" optional="false"/>
+                    <persistence type="property"/>
+                    <defaultvalue>Boolean.FALSE</defaultvalue>
+                </attribute>
+                <attribute qualifier="sessionTimeoutSeconds" type="java.lang.Integer">
+                    <description>Hosted tokenizer / merchant JWT session timeout in seconds.</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                    <defaultvalue>Integer.valueOf(600)</defaultvalue>
+                </attribute>
+                <attribute qualifier="active" type="java.lang.Boolean">
+                    <description>Whether PCP payment is enabled for the owning store.</description>
+                    <modifiers read="true" write="true" optional="false"/>
+                    <persistence type="property"/>
+                    <defaultvalue>Boolean.TRUE</defaultvalue>
+                </attribute>
+                <attribute qualifier="returnUrl" type="java.lang.String">
+                    <description>Stable per-store PCP redirect return URL for redirect and financing payment methods. When configured, must be an absolute HTTPS URL without a fragment; validated by PayoneConfigurationValidator.</description>
+                    <modifiers read="true" write="true" optional="true" />
+                    <persistence type="property"/>
+                </attribute>
+            </attributes>
+            <indexes>
+                <!-- Backs the impex merchantId[unique=true] key. -->
+                <index name="payoneConfigMerchantIdIdx" unique="true">
+                    <key attribute="merchantId"/>
+                </index>
+            </indexes>
+        </itemtype>
+
+        <!-- BaseStore: additive extension attaching per-store PCP config, no extends. -->
+        <itemtype code="BaseStore" autocreate="false" generate="false">
+            <description>Attach PCP configuration and checkout type to a store.</description>
+            <attributes>
+                <attribute qualifier="payoneConfiguration" type="PayoneConfiguration">
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="payoneCheckoutType" type="PayoneCheckoutTypesEnum">
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                    <defaultvalue>em().getEnumerationValue("PayoneCheckoutTypesEnum","HOSTED_TOKENIZATION")</defaultvalue>
+                </attribute>
+            </attributes>
+        </itemtype>
+
+        <!-- PaymentMode: additive extension adding PaymentFamily for PCP routing;
+             populated per row in projectdata-paymentmodes.impex. -->
+        <itemtype code="PaymentMode" autocreate="false" generate="false">
+            <description>Attach PCP payment-family routing to OOTB PaymentMode.</description>
+            <attributes>
+                <attribute qualifier="paymentFamily" type="PaymentFamily">
+                    <description>[PCP] Payment method family used to dispatch per-family SDK input builders (card, mobile, redirect, SEPA, financing).</description>
+                    <modifiers read="true" write="true" optional="false"/>
+                    <defaultvalue>em().getEnumerationValue("PaymentFamily","CARD")</defaultvalue>
+                    <persistence type="property"/>
+                </attribute>
+            </attributes>
+        </itemtype>
+
+        <!-- Order: denormalized PCP commerce-case id for fast SAP->PCP lookup without a
+             join; object navigation still goes via PayoneCommerceCase.order. -->
+        <itemtype code="Order" autocreate="false" generate="false">
+            <description>Attach PCP commerce-case / checkout id mapping to an Order.</description>
+            <attributes>
+                <attribute qualifier="payoneCommerceCaseId" type="java.lang.String">
+                    <description>PCP commerceCaseId bound to this order (SAP->PCP mapping).
+                        One Order maps to one CommerceCase. Checkout-level ids are NOT
+                        denormalized here (a case may hold more than one checkout) -
+                        see PayoneCheckout + PaymentTransaction for checkout/payment ids.</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+            </attributes>
+        </itemtype>
+
+        <!-- Cart: mirrors the Order extension, so the checkout controller can reuse an
+             already-created commerce case/checkout instead of minting a new one on
+             every payment-step page load. -->
+        <itemtype code="Cart" autocreate="false" generate="false">
+            <description>Attach PCP commerce-case / checkout id mapping to a Cart.</description>
+            <attributes>
+                <attribute qualifier="payoneCommerceCaseId" type="java.lang.String">
+                    <description>PCP commerceCaseId already created for this cart, if any.</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="payoneCheckoutId" type="java.lang.String">
+                    <description>PCP checkoutId already created for this cart, if any.</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+            </attributes>
+        </itemtype>
+
+        <!-- PaymentTransaction: PCP ids + PSP raw code, mirroring legacy
+             PaymentTransaction.worldlineRawTransactionCode. Capture/refund/cancel
+             results land on the transaction, so the PCP ids they operate on live here too. -->
+        <itemtype code="PaymentTransaction" autocreate="false" generate="false">
+            <description>Attach PCP ids + PSP raw code to a PaymentTransaction.</description>
+            <attributes>
+                <attribute qualifier="payoneCommerceCaseId" type="java.lang.String">
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="payoneCheckoutId" type="java.lang.String">
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="payonePaymentExecutionId" type="java.lang.String">
+                    <description>PCP paymentExecutionId the capture/refund/cancel operates on.</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="payonePaymentId" type="java.lang.String">
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="payoneRawTransactionCode" type="java.lang.String">
+                    <description>Raw PSP transaction code from PCP (mirror of legacy
+                        worldlineRawTransactionCode); kept for support/reconciliation.</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+            </attributes>
+        </itemtype>
+
+        <!-- PayonePaymentInfo: no own <deployment> - single-table inheritance means it
+             shares PaymentInfo's table (PaymentInfos, typecode 42); added PCP columns
+             land there too, kept optional. -->
+        <itemtype code="PayonePaymentInfo" extends="PaymentInfo"
+                  autocreate="true" generate="true">
+            <description>PCP payment information: processing token + masked card display data.</description>
+            <attributes>
+                <attribute qualifier="paymentProcessingToken" type="java.lang.String">
+                    <description>[PCP] CardPaymentMethodSpecificInput.paymentProcessingToken -
+                        replaces legacy hostedTokenizationId. This IS the reusable card reference:
+                        obtained client-side from the hosted tokenizer and passed on subsequent
+                        PaymentExecutions (card-on-file / one-click). PCP models no separate durable
+                        token - reuse is driven by card-on-file flags at request time,
+                        not by a distinct field.
+                        NOTE: the card PaymentExecution response does NOT echo this
+                        token - CardPaymentMethodSpecificOutput carries only paymentProductId,
+                        authorisationCode, fraudResults, threeDSecureResults. The echo on
+                        CardPaymentDetails.paymentProcessingToken exists only on
+                        PaymentInformationResponse, i.e. the POS / in-store Payment Information API,
+                        which is not part of the web checkout flow. Source: PCP Commerce Platform
+                        OpenAPI 1.61.0 (api-definition.yaml in PAYONE-GmbH/PCP-ServerSDK-java).</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="reportingToken" type="java.lang.String">
+                    <description>[PCP] CardPaymentDetails.reportingToken - reconciliation reference
+                        distinct from paymentProcessingToken; kept for support/reporting.</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="paymentProductId" type="java.lang.Integer">
+                    <description>[PCP] CardPaymentMethodSpecificInput.paymentProductId (e.g. 1 = cards).</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="paymentMethod" type="java.lang.String">
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="payoneCheckoutType" type="PayoneCheckoutTypesEnum">
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <!-- Card-on-file reuse: reference to the previously-saved payment info this one
+                     reuses (self-association, matches Figure 1 usedSavedPayment).
+                     Complements the token-driven reuse above. -->
+                <attribute qualifier="usedSavedPayment" type="PayonePaymentInfo">
+                    <description>Saved PayonePaymentInfo reused for this (card-on-file) payment.</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <!-- 'saved' is inherited from OOTB PaymentInfo (commerceservices):
+                     PaymentInfo.saved(Boolean) already exists, so it must NOT be
+                     re-declared here (single-table inheritance -> duplicate inherited
+                     attribute, fails ant all). Reuse the inherited attribute. -->
+                <attribute qualifier="recurringToken" type="PayoneRecurringToken">
+                    <description>Token used for recurring payment (domain-only skeleton).</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="mandate" type="PayoneMandate">
+                    <description>Associated SEPA mandate (skeleton).</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="customerIpAddress" type="java.lang.String">
+                    <description>[PCP] PaymentMethodSpecificInput.customerDevice.ipAddress - sibling of the
+                        per-family specific input, not part of it. Mandatory for every PAYONE BNPL
+                        payment (docs.commerce.payone.com/docs/payment-methods/payone-bnpl/
+                        payone-secured-invoice); carried here as a transient field on PayonePaymentInfo,
+                        same pattern as 'mandate' for SEPA, since no other model in this request path
+                        has a concept of the customer's device/IP today.</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="googlePayEncryptedPaymentData" type="java.lang.String">
+                    <description>[PCP] MobilePaymentMethodSpecificInput.encryptedPaymentData
+                        (docs.commerce.payone.com/docs/payment-methods/google-pay/standard-checkout) - the
+                        base64-encoded token Google returns to the frontend when the customer confirms
+                        payment (see PcpMobilePaymentMethodSpecificInputBuilder). One-time-use payload, not
+                        a durable/reusable card reference like paymentProcessingToken - carried here as a
+                        transient field on PayonePaymentInfo, same pattern as 'customerIpAddress' above,
+                        since Google Pay has no reusable token concept to fit an existing attribute.</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="applePayEncryptedPaymentData" type="java.lang.String">
+                    <description>[PCP] MobilePaymentMethodSpecificInput.encryptedPaymentData for Apple Pay
+                        (docs.commerce.payone.com/docs/payment-methods/apple-pay) - mandatory for every
+                        Apple Pay payment, decrypted-payment-data equivalent of the Apple PKPaymentToken's
+                        paymentData. Separate from googlePayEncryptedPaymentData above even though both
+                        target the same SDK field, so each wallet's transient payload stays independently
+                        readable/settable without one family's authorize() call accidentally reusing the
+                        other's leftover value. Minimal cut: only
+                        enough fields for a One-Step CommerceCase request to be buildable, not the full
+                        PKPaymentToken shape (paymentProduct302SpecificInput.token.* - signature, header,
+                        network, integrationType - deliberately not added here).</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="applePayPublicKeyHash" type="java.lang.String">
+                    <description>[PCP] MobilePaymentMethodSpecificInput.publicKeyHash - mandatory for every
+                        Apple Pay payment (docs.commerce.payone.com/docs/payment-methods/apple-pay):
+                        "A unique identifier to retrieve key used by Apple to encrypt information."</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="applePayEphemeralKey" type="java.lang.String">
+                    <description>[PCP] MobilePaymentMethodSpecificInput.ephemeralKey - mandatory for every
+                        Apple Pay payment (docs.commerce.payone.com/docs/payment-methods/apple-pay):
+                        "A unique generated key used by Apple to encrypt data."</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+            </attributes>
+        </itemtype>
+
+        <!-- PayoneCommerceCase: net-new, PCP top-level container linked to Order,
+             holding one or more PayoneCheckout (relation above). -->
+        <itemtype code="PayoneCommerceCase" extends="GenericItem"
+                  autocreate="true" generate="true">
+            <description>PCP Commerce Case - top container of the nested PCP domain, linked to an Order.</description>
+            <deployment table="payonePcpCommerceCase" typecode="15112"/>
+            <attributes>
+                <attribute qualifier="commerceCaseId" type="java.lang.String">
+                    <description>[PCP] CommerceCaseResponse.commerceCaseId (natural key from PCP).</description>
+                    <modifiers read="true" write="true" search="true" optional="false" unique="true" initial="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="merchantReference" type="java.lang.String">
+                    <description>Merchant reference echoed to/from PCP.</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+            </attributes>
+            <indexes>
+                <index name="payoneCommerceCaseIdIdx" unique="true">
+                    <key attribute="commerceCaseId"/>
+                </index>
+            </indexes>
+        </itemtype>
+
+        <!-- PayoneCheckout: net-new, carries the PCP ids capture/refund/cancel operate
+             on plus the idempotency key. Part-of a PayoneCommerceCase. -->
+        <itemtype code="PayoneCheckout" extends="GenericItem"
+                  autocreate="true" generate="true">
+            <description>PCP Checkout - holds checkoutId / paymentExecutionId / paymentId / idempotencyKey.</description>
+            <deployment table="payonePcpCheckout" typecode="15113"/>
+            <attributes>
+                <attribute qualifier="checkoutId" type="java.lang.String">
+                    <description>[PCP] CheckoutResponse.checkoutId (natural key from PCP).</description>
+                    <modifiers read="true" write="true" search="true" optional="false" unique="true" initial="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="paymentExecutionId" type="java.lang.String">
+                    <description>[PCP] PaymentExecution.paymentExecutionId (PaymentExecution path).</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="paymentId" type="java.lang.String">
+                    <description>[PCP] paymentId.</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="idempotencyKey" type="java.lang.String">
+                    <description>Last idempotency key sent for the PaymentExecution request
+                        (X-GCS-Idempotence-Key); stored for safe retries.</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="amount" type="java.lang.Long">
+                    <description>Amount in minor units (PCP convention).</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="currencyIsoCode" type="java.lang.String">
+                    <description>ISO 4217 currency code of the amount.</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="status" type="PayonePaymentStatus">
+                    <description>[PCP] checkout/payment lifecycle status. Mapping to OOTB
+                        TransactionStatus / Order.paymentStatus deferred.</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="order" type="Order">
+                    <description>Order this checkout belongs to.</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+            </attributes>
+            <indexes>
+                <index name="payoneCheckoutIdIdx" unique="true">
+                    <key attribute="checkoutId"/>
+                </index>
+            </indexes>
+        </itemtype>
+
+        <!-- PayoneRecurringToken: domain-only skeleton, out of scope as a live feature.
+             token renamed to paymentProcessingToken to match PCP naming. -->
+        <itemtype code="PayoneRecurringToken" extends="GenericItem"
+                  autocreate="true" generate="true">
+            <description>Recurring payment token (domain-only skeleton).</description>
+            <deployment table="payonePcpRecurringToken" typecode="15114"/>
+            <attributes>
+                <attribute qualifier="paymentProcessingToken" type="java.lang.String">
+                    <description>[PCP] the stored paymentProcessingToken value (was 'token').</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <!-- Masked display data (maskedCardNumber / cardholderName / expiryDate) lives
+                     SOLELY on PayonePaymentInfo. It was duplicated here; removed,
+                     because both copies would be written from the same single source event (the
+                     client tokenizer success callback) in the same transaction - denormalisation
+                     with a drift path and no read benefit, since PayonePaymentInfo.recurringToken
+                     already associates the two. Reach the display data through that association.
+                     If, at recurring activation, an independent snapshot is genuinely required
+                     (e.g. the schedule must outlive its PaymentInfo), reintroduce it then as a
+                     deliberate, documented denormalisation. -->
+                <attribute qualifier="status" type="PayoneRecurringPaymentStatus">
+                    <persistence type="property"/>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <defaultvalue>em().getEnumerationValue("PayoneRecurringPaymentStatus","ACTIVE")</defaultvalue>
+                </attribute>
+                <attribute qualifier="recurringMode" type="PayoneRecurringModeEnum">
+                    <persistence type="property"/>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <defaultvalue>em().getEnumerationValue("PayoneRecurringModeEnum","UNSCHEDULED_COF")</defaultvalue>
+                </attribute>
+                <attribute qualifier="frequency" type="PayoneRecurringFrequencyEnum">
+                    <description>[PCP] cardOnFileRecurringFrequency (schedule skeleton).</description>
+                    <persistence type="property"/>
+                    <modifiers read="true" write="true" optional="true"/>
+                </attribute>
+                <attribute qualifier="recurringExpiration" type="java.lang.String">
+                    <description>[PCP] cardOnFileRecurringExpiration (yyyyMMdd).</description>
+                    <persistence type="property"/>
+                    <modifiers read="true" write="true" optional="true"/>
+                </attribute>
+                <attribute qualifier="agreedAmount" type="java.lang.Long">
+                    <description>Constant amount required across the recurring chain (minor units).</description>
+                    <persistence type="property"/>
+                    <modifiers read="true" write="true" optional="true"/>
+                </attribute>
+                <attribute qualifier="currencyCode" type="java.lang.String">
+                    <description>ISO 4217 currency of the agreed amount.</description>
+                    <persistence type="property"/>
+                    <modifiers read="true" write="true" optional="true"/>
+                </attribute>
+                <attribute qualifier="nextExecutionDate" type="java.util.Date">
+                    <description>Next scheduled execution (schedule skeleton).</description>
+                    <persistence type="property"/>
+                    <modifiers read="true" write="true" optional="true"/>
+                </attribute>
+                <attribute qualifier="consentGivenAt" type="java.util.Date">
+                    <description>When the consumer consented to tokenize for reuse (PCP requires
+                        explicit approval).</description>
+                    <persistence type="property"/>
+                    <modifiers read="true" write="true" optional="true"/>
+                </attribute>
+                <attribute qualifier="initialPaymentExecutionId" type="java.lang.String">
+                    <description>[PCP] paymentExecutionId of the initial payment that established the
+                        token; sent as PaymentExecution.previousPayment on subsequent charges
+                        (PCP has no schemeTransactionId).</description>
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="subscriptionId" type="java.lang.String">
+                    <modifiers read="true" write="true" search="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="customer" type="Customer">
+                    <description>Owning customer.</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="storeId" type="java.lang.String">
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+            </attributes>
+        </itemtype>
+
+        <!-- PayoneMandate (SEPA): PCP dateOfSignature is a String (yyyyMMdd), not a Date.
+             Also populated transiently by PayoneCheckoutFacade.executePaymentAndPlaceOrder
+             for the live Secured Direct Debit checkout path - the "skeleton only"
+             framing below predates this and needs review. -->
+        <itemtype code="PayoneMandate" extends="GenericItem"
+                  autocreate="true" generate="true">
+            <description>SEPA mandate - checkout-time transient use + skeleton persistence.</description>
+            <deployment table="payonePcpMandate" typecode="15115"/>
+            <attributes>
+                <attribute qualifier="uniqueMandateReference" type="java.lang.String">
+                    <modifiers read="true" write="true" search="true" unique="true" optional="false" initial="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="creditorId" type="java.lang.String">
+                    <description>SEPA creditor identifier.</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="dateOfSignature" type="java.lang.String">
+                    <description>[PCP] ProcessingMandateInformation.dateOfSignature (yyyyMMdd String).</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="status" type="PayoneRecurringPaymentStatus">
+                    <persistence type="property"/>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <defaultvalue>em().getEnumerationValue("PayoneRecurringPaymentStatus","ACTIVE")</defaultvalue>
+                </attribute>
+                <attribute qualifier="recurrenceType" type="PayoneMandateRecurrenceType">
+                    <persistence type="property"/>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <defaultvalue>em().getEnumerationValue("PayoneMandateRecurrenceType","UNIQUE")</defaultvalue>
+                </attribute>
+                <attribute qualifier="iban" type="java.lang.String">
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="bic" type="java.lang.String">
+                    <description>[PCP] BankAccountInformation.bic - optional except where the BIC cannot be
+                        derived from the IBAN (Switzerland; docs.commerce.payone.com/docs/payment-methods/
+                        payone-bnpl/payone-secured-direct-debit). Not read by SEPA (771) today, only by
+                        Secured Direct Debit (3392).</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="accountHolder" type="java.lang.String">
+                    <description>[PCP] BankAccountInformation.accountHolder.</description>
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="alias" type="java.lang.String">
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="customerReference" type="java.lang.String">
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="firstName" type="java.lang.String">
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="lastName" type="java.lang.String">
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="emailAddress" type="java.lang.String">
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="customer" type="Customer">
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+                <attribute qualifier="storeId" type="java.lang.String">
+                    <modifiers read="true" write="true" optional="true"/>
+                    <persistence type="property"/>
+                </attribute>
+            </attributes>
+            <indexes>
+                <index name="payoneMandateRefIdx" unique="true">
+                    <key attribute="uniqueMandateReference"/>
+                </index>
+            </indexes>
+        </itemtype>
+
+    </itemtypes>
+</items>
