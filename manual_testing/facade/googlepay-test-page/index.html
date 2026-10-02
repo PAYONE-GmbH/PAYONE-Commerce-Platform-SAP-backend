@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PCP Google Pay Test</title>
+</head>
+<body>
+  <div id="container"></div>
+  <div id="token-container"></div>
+  <script>
+    /**
+     * Configure the version of the Google Pay API referenced.
+     */
+    const baseRequest = {
+      apiVersion: 2,
+      apiVersionMinor: 0
+    };
+
+    /**
+     * Card networks supported by PAYONE.
+     */
+    const allowedCardNetworks = ["MASTERCARD", "VISA"];
+
+    /**
+     * Card authentication methods supported.
+     * CRYPTOGRAM_3DS is required within the EU.
+     */
+    const allowedCardAuthMethods = ["PAN_ONLY", "CRYPTOGRAM_3DS"];
+
+    /**
+     * Identify PAYONE as the gateway and set your PAYONE merchantId.
+     */
+    const tokenizationSpecification = {
+      type: 'PAYMENT_GATEWAY',
+      parameters: {
+        'gateway': 'payonegmbh',
+        'gatewayMerchantId': 'REPLACE_WITH_MERCHANT_ID'
+      }
+    };
+
+    const baseCardPaymentMethod = {
+      type: 'CARD',
+      parameters: {
+        allowedAuthMethods: allowedCardAuthMethods,
+        allowedCardNetworks: allowedCardNetworks
+      }
+    };
+
+    const cardPaymentMethod = Object.assign(
+      {},
+      baseCardPaymentMethod,
+      { tokenizationSpecification: tokenizationSpecification }
+    );
+
+    let paymentsClient = null;
+
+    function getGoogleIsReadyToPayRequest() {
+      return Object.assign({}, baseRequest, {
+        allowedPaymentMethods: [baseCardPaymentMethod]
+      });
+    }
+
+    /**
+     * Google's own merchantId is NOT required for the TEST environment
+     * (only for Live) - left commented out on purpose, per PAYONE's docs.
+     */
+    function getGooglePaymentDataRequest() {
+      const paymentDataRequest = Object.assign({}, baseRequest);
+      paymentDataRequest.allowedPaymentMethods = [cardPaymentMethod];
+      paymentDataRequest.transactionInfo = getGoogleTransactionInfo();
+      paymentDataRequest.merchantInfo = {
+        // merchantId: '12345678901234567890', // only needed for Live
+        merchantName: 'Example Merchant'
+      };
+      return paymentDataRequest;
+    }
+
+    function getGooglePaymentsClient() {
+      if (paymentsClient === null) {
+        paymentsClient = new google.payments.api.PaymentsClient({ environment: 'TEST' });
+      }
+      return paymentsClient;
+    }
+
+    function onGooglePayLoaded() {
+      const paymentsClient = getGooglePaymentsClient();
+      paymentsClient.isReadyToPay(getGoogleIsReadyToPayRequest())
+        .then(function (response) {
+          if (response.result) {
+            addGooglePayButton();
+          }
+        })
+        .catch(function (err) {
+          console.error(err);
+        });
+    }
+
+    function addGooglePayButton() {
+      const paymentsClient = getGooglePaymentsClient();
+      const button = paymentsClient.createButton({
+        onClick: onGooglePaymentButtonClicked,
+        allowedPaymentMethods: [baseCardPaymentMethod]
+      });
+      document.getElementById('container').appendChild(button);
+    }
+
+    /**
+     * IMPORTANT: totalPrice must match the actual cart total the groovy
+     * script sends to PCP (pcp-facade-mobile-onestep-test.groovy prints
+     * it as "Cart [...] ready — total X EUR"). PCP validates the CommerceCase
+     * amount against the amount authorized in the Google Pay sheet - a
+     * mismatch causes a validation rejection (same mechanism documented for
+     * Apple Pay error codes 2700/2701 "Request amount/currency differs from
+     * token amount", docs.commerce.payone.com/docs/payment-methods/apple-pay).
+     * Update this value BEFORE clicking the button each time the test cart's
+     * total changes.
+     */
+    function getGoogleTransactionInfo() {
+      return {
+        countryCode: 'DE',
+        currencyCode: 'EUR',
+        totalPriceStatus: 'FINAL',
+        totalPrice: '14.06'
+      };
+    }
+
+    function onGooglePaymentButtonClicked() {
+      const paymentDataRequest = getGooglePaymentDataRequest();
+      paymentDataRequest.transactionInfo = getGoogleTransactionInfo();
+      const paymentsClient = getGooglePaymentsClient();
+      paymentsClient.loadPaymentData(paymentDataRequest)
+        .then(function (paymentData) {
+          processPayment(paymentData);
+        })
+        .catch(function (err) {
+          console.error(err);
+        });
+    }
+
+    function printToken(paymentData) {
+      console.log(paymentData);
+      const paymentToken = paymentData.paymentMethodData.tokenizationData.token;
+      // Base64-encode HERE, in the browser, before this ever becomes text a
+      // human copies. A base64 string only ever contains [A-Za-z0-9+/=],
+      // which is always safe to paste into a Groovy/Java string literal
+      // verbatim - unlike the raw token JSON, which contains backslash
+      // escapes and = unicode escapes that Groovy/Java can silently
+      // reinterpret at the SOURCE level if even one backslash is copied
+      // wrong. This is the exact step docs.commerce.payone.com/docs/
+      // payment-methods/google-pay/standard-checkout's own Java example
+      // shows (Base64.encodeBase64(token.getBytes(UTF_8))) - doing it here
+      // instead of in Groovy removes the one manual step where corruption
+      // was silently happening.
+      const utf8Bytes = new TextEncoder().encode(paymentToken);
+      let binary = '';
+      utf8Bytes.forEach(b => binary += String.fromCharCode(b));
+      const encryptedPaymentData = btoa(binary);
+      document.getElementById('token-container').innerHTML = encryptedPaymentData;
+    }
+
+    function processPayment(paymentData) {
+      console.log(paymentData);
+      printToken(paymentData);
+      // DO NOT save the payment credentials for future transactions.
+    }
+  </script>
+  <script async src="https://pay.google.com/gp/p/js/pay.js" onload="onGooglePayLoaded()"></script>
+</body>
+</html>

@@ -36,7 +36,7 @@ Backoffice tooling for configuration, monitoring and post-order payment operatio
 8. [Backoffice](#8-backoffice)
 9. [Supported payment methods](#9-supported-payment-methods)
 10. [Not yet available in this version](#10-not-yet-available-in-this-version)
-11. [Building and testing](#11-building-and-testing)
+11. [Building and testing](#11-building-and-testing) — incl. [manual integration tests](manual_testing/README.md)
 
 ---
 
@@ -413,6 +413,15 @@ ant unittests -Dtestclasses.packages="com.payone.*"
 
 The PCP SDK and its dependencies are shipped in `payonepcpcore/lib`; no Maven download is
 needed during the build.
+
+### Manual integration tests
+
+Beyond the unit tests, [`manual_testing/`](manual_testing/README.md) contains Groovy scripts that
+are run in the HAC scripting console against PCP preprod. They cover connectivity, Spring wiring,
+the checkout flow per payment method (card incl. pre-authorisation, SEPA, PayPal, PAYONE BNPL,
+Google Pay/Apple Pay, Wero), uncaptured payments and raw API diagnostics, plus a Google Pay test
+page for generating wallet tokens. See [`manual_testing/README.md`](manual_testing/README.md) for
+prerequisites, the recommended order and how to use each script.
 
 ---
 
